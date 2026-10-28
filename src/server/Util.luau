@@ -2,6 +2,7 @@ local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local SoundBank = require(ReplicatedStorage.Shared.SoundBank)
 
 local Util = {}
 
@@ -13,17 +14,42 @@ function Util.material(name: string, fallback: Enum.Material): Enum.Material
 	return if ok and result then result else fallback
 end
 
-function Util.playSound(name: string, parent: Instance, volume: number?)
-	local id = Config.Sounds[name]
-	if not id or id == "" then
-		return
+-- One-shot sound attached to a part (it moves with the part, and you hear where it is).
+function Util.playSound(name: string, parent: Instance): Sound?
+	local sound = SoundBank.create(name)
+	if sound then
+		sound.Parent = parent
+		sound:Play()
+		Debris:AddItem(sound, 12)
 	end
-	local sound = Instance.new("Sound")
-	sound.SoundId = id
-	sound.Volume = volume or 0.6
-	sound.Parent = parent
-	sound:Play()
-	Debris:AddItem(sound, 10)
+	return sound
+end
+
+-- One-shot sound at a spot in the world, for things that are about to be destroyed.
+function Util.soundAt(name: string, position: Vector3)
+	local holder = Instance.new("Part")
+	holder.Name = "SoundSpot"
+	holder.Anchored = true
+	holder.CanCollide = false
+	holder.CanQuery = false
+	holder.CanTouch = false
+	holder.Transparency = 1
+	holder.Size = Vector3.one
+	holder.Position = position
+	holder.Parent = workspace
+	Util.playSound(name, holder)
+	Debris:AddItem(holder, 12)
+end
+
+-- Looping sound on a part. Stops when the part is destroyed.
+function Util.loopSound(name: string, parent: Instance): Sound?
+	local sound = SoundBank.create(name)
+	if sound then
+		sound.Looped = true
+		sound.Parent = parent
+		sound:Play()
+	end
+	return sound
 end
 
 function Util.characterFromPart(part: BasePart): (Model?, Humanoid?)

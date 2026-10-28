@@ -59,7 +59,8 @@ function Pod.build()
 	for z = -6, 6, 4 do
 		Craft.block(decor, CFrame.new(at(0, 0.02, z)), Vector3.new(W + 8, 0.05, 0.2), Colors.WoodDark, M.Wood, Craft.DECOR)
 	end
-	Craft.block(decor, CFrame.new(at(-6, 0.1, 0)), Vector3.new(26, 0.2, 10), Colors.Felt, M.Carpet, Craft.DECOR)
+	-- The rug is solid so you hear muffled felt footsteps on it and wooden clacks off it.
+	Craft.block(model, CFrame.new(at(-6, 0.1, 0)), Vector3.new(26, 0.2, 10), Colors.Felt, M.Carpet)
 
 	-- Cardboard back wall with stitched panels.
 	Craft.block(model, CFrame.new(at(0, def.height / 2, wallZ - 1)), Vector3.new(W + 8, def.height + 8, 2), Colors.CardboardDark)

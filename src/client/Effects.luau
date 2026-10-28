@@ -1,6 +1,7 @@
 -- Client-side visual effects. The server just says "a bomb went off here", and this makes it
--- look good: cellophane flames, tissue-paper splashes, felt confetti, floating points.
--- Also animates decorations the server tagged (bobbing bubbles, waves, seaweed, bunting, bulbs).
+-- look good: cellophane flames, tissue-paper splashes, felt confetti, floating points, coin rain.
+-- Also animates decorations the server tagged (bobbing bubbles, waves, seaweed, bunting, bulbs,
+-- flickering fire, the clock pendulum and the egg timer).
 
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
@@ -10,7 +11,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-local Sound = require(script.Parent.Sound)
+local Audio = require(script.Parent.Audio)
 local StageCamera = require(script.Parent.StageCamera)
 
 local Colors = Config.Colors
@@ -83,7 +84,7 @@ function handlers.Popup(data)
 end
 
 function handlers.Pop(data)
-	Sound.play("BubblePop", data.position, 0.5)
+	Audio.play("BubblePop", data.position)
 	for i = 1, 6 do
 		local angle = i / 6 * math.pi * 2
 		local spark = effectPart({ Shape = Enum.PartType.Ball, Size = Vector3.one * 0.5, Position = data.position, Material = Enum.Material.Neon, Color = Colors.Bubble })
@@ -93,8 +94,8 @@ function handlers.Pop(data)
 end
 
 function handlers.Boom(data)
+	-- (The bang itself is played by the server so everyone hears it from the same spot.)
 	local position, radius = data.position, data.radius
-	Sound.play("Bang", position, 0.9)
 
 	-- Bright flash that swells and fades.
 	local flash = effectPart({ Shape = Enum.PartType.Ball, Size = Vector3.one * 2, Position = position, Material = Enum.Material.Neon, Color = Colors.Gold })
@@ -147,14 +148,57 @@ function handlers.Knock(data)
 end
 
 function handlers.Splash(data)
-	Sound.play("Splash", data.position, 0.7)
+	-- Torn tissue paper flying up out of the water.
 	confetti(data.position, { Colors.Sea, Color3.fromRGB(150, 210, 245), Color3.new(1, 1, 1) }, 18, 30, Enum.Material.SmoothPlastic)
 	StageCamera.shake(0.8)
 end
 
 function handlers.Poof(data)
-	Sound.play("BubblePop", data.position, 0.8)
 	confetti(data.position, { data.color or Colors.Felt, Colors.Burlap, Colors.Paper }, 20, 22)
+end
+
+function handlers.Teleport(data)
+	Audio.play("TeleportPop", data.position)
+	confetti(data.position, { data.color or Colors.Gold, Colors.Paper }, 10, 14)
+end
+
+function handlers.Squish(data)
+	confetti(data.position, { Colors.Burlap, Colors.Foam, Colors.FoamShade }, 16, 18)
+	StageCamera.shake(2)
+end
+
+-- You survived: silence, a toy-trumpet fanfare right above you, then a rain of plastic tokens.
+function handlers.Victory(_data)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not root then
+		return
+	end
+	task.delay(0.25, function()
+		Audio.play("Fanfare", root.Position + Vector3.new(0, 4, 0), "Interface")
+	end)
+
+	local tokenColors = { Colors.Gold, Colors.Felt, Color3.fromRGB(90, 160, 220), Color3.fromRGB(110, 190, 100) }
+	task.delay(0.6, function()
+		for i = 1, 45 do
+			local spot = root.Position + Vector3.new((math.random() - 0.5) * 14, 14 + math.random() * 6, (math.random() - 0.5) * 6)
+			local token = effectPart({
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.25, 1.2, 1.2),
+				CFrame = CFrame.new(spot) * CFrame.Angles(math.random() * 6, math.random() * 6, 0),
+				Color = tokenColors[i % #tokenColors + 1],
+				Material = Enum.Material.SmoothPlastic,
+			})
+			token.Anchored = false
+			token.CanCollide = true
+			token.AssemblyAngularVelocity = Vector3.new(math.random(-12, 12), math.random(-12, 12), 0)
+			Debris:AddItem(token, 3)
+			if i % 3 == 0 then
+				Audio.play("CoinClink", nil, "Interface", 0.85 + math.random() * 0.4)
+			end
+			task.wait(0.05)
+		end
+	end)
 end
 
 -- Tagged decorations -------------------------------------------------------------
@@ -167,6 +211,13 @@ local animated: { [string]: { [BasePart]: CFrame } } = {
 }
 local bulbs: { [BasePart]: boolean } = {}
 local lastBlink = -1
+
+-- Parts that rotate around an "Pivot" attribute point (clock pendulum, egg timer hand).
+local pendulums: { [BasePart]: CFrame } = {}
+local spinners: { [BasePart]: CFrame } = {}
+local spinAngles: { [BasePart]: number } = {}
+-- Fire flames: remember their starting size so they can flicker around it.
+local flames: { [BasePart]: Vector3 } = {}
 
 local function track(tag: string, set)
 	local function add(instance: Instance)
@@ -183,8 +234,31 @@ local function track(tag: string, set)
 	end)
 end
 
-local function animate()
+local function aroundPivot(part: BasePart, base: CFrame, angle: number): CFrame
+	local pivot = part:GetAttribute("Pivot")
+	if typeof(pivot) ~= "Vector3" then
+		return base
+	end
+	local pivotFrame = CFrame.new(pivot)
+	return pivotFrame * CFrame.Angles(0, 0, angle) * pivotFrame:Inverse() * base
+end
+
+local function animate(dt: number)
 	local t = os.clock()
+
+	for part, base in pendulums do
+		part.CFrame = aroundPivot(part, base, math.sin(t * 2.2) * 0.35)
+	end
+	for part, base in spinners do
+		local speed = part:GetAttribute("Speed") or 0
+		if speed ~= 0 then
+			spinAngles[part] = (spinAngles[part] or 0) - speed * dt
+			part.CFrame = aroundPivot(part, base, spinAngles[part])
+		end
+	end
+	for part, size in flames do
+		part.Size = size * (0.75 + math.noise(t * 6, part.Position.X) * 0.5 + 0.1)
+	end
 
 	for part, base in animated.Bob do
 		part.CFrame = base * CFrame.new(0, math.sin(t * 2.5 + base.Position.X) * 0.4, 0)
@@ -227,8 +301,23 @@ function Effects.start()
 		track(tag, set)
 	end
 	track("Bulb", bulbs)
+	track("Pendulum", pendulums)
+	track("Spin", spinners)
+
+	local function addFlame(instance: Instance)
+		if instance:IsA("BasePart") then
+			flames[instance] = instance.Size
+		end
+	end
+	for _, instance in CollectionService:GetTagged("Flicker") do
+		addFlame(instance)
+	end
+	CollectionService:GetInstanceAddedSignal("Flicker"):Connect(addFlame)
+	CollectionService:GetInstanceRemovedSignal("Flicker"):Connect(function(instance)
+		flames[instance :: BasePart] = nil
+	end)
+
 	RunService.RenderStepped:Connect(animate)
-	Sound.startMusic()
 end
 
 return Effects

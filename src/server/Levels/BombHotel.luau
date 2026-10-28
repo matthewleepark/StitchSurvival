@@ -2,12 +2,16 @@
 -- blow holes in, so players drop lower and lower as the round goes on.
 --
 -- Layout (side view, y is up):
---   y 72+   HOTEL KABOOM marquee, bomb chutes hang below it
---   y 48    foam floor 3   (hole on the left)  <- players start here
---   y 32    foam floor 2   (hole on the right)
+--   y 76+   HOTEL KABOOM marquee + egg timer, bomb chutes hang below it
+--   y 64    foam floor 4   (hole on the right) <- players start here
+--   y 48    foam floor 3   (hole on the left)
+--   y 32    foam floor 2   (hole on the right) <- grandfather clock on this floor's wall
 --   y 16    foam floor 1   (hole on the left)
 --   y 0     solid wood lobby floor
 -- Foam steps under each hole let players climb back up.
+--
+-- Round timeline: a few calm seconds (hum + clock), then the egg timer buzzes and spins,
+-- then bombs start falling from the chutes and a planted time bomb appears every 15 seconds.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -20,15 +24,59 @@ local Bombs = require(script.Parent.Bombs)
 local Colors = Config.Colors
 local M = Craft.Material
 
+local function findDef()
+	for _, def in Config.Levels do
+		if def.name == "BombHotel" then
+			return def
+		end
+	end
+	error("BombHotel is missing from Config.Levels")
+end
+
 local FLOOR_HEIGHT = 16
-local FOAM_FLOORS = 3
+local FOAM_FLOORS = findDef().floors - 1
 local BLOCK = 4
 local SLAB_DEPTH = 15 -- leaves a small gap in front of the back wall for the wallpaper
 local SLAB_Z = 0.5
 local CHUTE_XS = { -40, -24, -8, 8, 24, 40 }
-local CHUTE_BOTTOM = 60
+local CHUTE_BOTTOM = (FOAM_FLOORS + 1) * FLOOR_HEIGHT - 4
 
 local BombHotel = {}
+
+-- Tall wooden clock with a swinging pendulum (the client swings anything tagged "Pendulum").
+local function buildGrandfatherClock(parent: Instance, base: Vector3)
+	local wood, dark = Colors.Wood, Colors.WoodDark
+	Craft.block(parent, CFrame.new(base + Vector3.new(0, 5, 0)), Vector3.new(3.2, 10, 1.4), dark, M.Wood, Craft.DECOR)
+	Craft.block(parent, CFrame.new(base + Vector3.new(0, 10.4, 0)), Vector3.new(3.8, 1, 1.6), wood, M.Wood, Craft.DECOR)
+	Craft.block(parent, CFrame.new(base + Vector3.new(0, 4.6, 0.72)), Vector3.new(2.2, 5.2, 0.05), Color3.fromRGB(70, 50, 40), M.Plastic, Craft.DECOR)
+
+	local faceCenter = base + Vector3.new(0, 8.6, 0.75)
+	local face = Craft.disc(parent, faceCenter, 2.4, Colors.Paper, M.Plastic, Craft.DECOR)
+	Craft.block(parent, CFrame.new(faceCenter + Vector3.new(0, 0.4, 0.2)), Vector3.new(0.12, 0.8, 0.05), Colors.Ink, M.Plastic, Craft.DECOR)
+	Craft.block(parent, CFrame.new(faceCenter + Vector3.new(0.3, 0, 0.2)), Vector3.new(0.6, 0.12, 0.05), Colors.Ink, M.Plastic, Craft.DECOR)
+
+	local pivot = base + Vector3.new(0, 7, 0.8)
+	local rod = Craft.block(parent, CFrame.new(pivot + Vector3.new(0, -1.8, 0)), Vector3.new(0.15, 3.6, 0.05), Colors.Gold, M.Metal, Craft.DECOR)
+	local bob = Craft.disc(parent, pivot + Vector3.new(0, -3.8, 0.05), 1, Colors.Gold, M.Metal, Craft.DECOR)
+	for _, part in { rod, bob } do
+		part:SetAttribute("Pivot", pivot)
+		Craft.tag(part, "Pendulum")
+	end
+
+	Util.loopSound("ClockTock", face)
+end
+
+-- Kitchen egg timer stuck to the marquee. The hand spins while the client sees Speed > 0.
+local function buildEggTimer(parent: Instance, center: Vector3)
+	Craft.disc(parent, center, 4.4, Colors.Felt, M.Plastic, Craft.DECOR)
+	Craft.disc(parent, center + Vector3.new(0, 0, 0.1), 3.4, Colors.Paper, M.Plastic, Craft.DECOR)
+	Craft.block(parent, CFrame.new(center + Vector3.new(0, 2.5, 0)), Vector3.new(1, 0.8, 0.8), Colors.Felt, M.Plastic, Craft.DECOR)
+	local hand = Craft.block(parent, CFrame.new(center + Vector3.new(0, 0.7, 0.3)), Vector3.new(0.2, 1.4, 0.05), Colors.Ink, M.Plastic, Craft.DECOR)
+	hand:SetAttribute("Pivot", center + Vector3.new(0, 0, 0.3))
+	hand:SetAttribute("Speed", 0)
+	Craft.tag(hand, "Spin")
+	return hand
+end
 
 function BombHotel.build(def)
 	local O = def.origin
@@ -76,7 +124,7 @@ function BombHotel.build(def)
 		for room = 1, 3 do
 			local x = (room - 2) * 32
 			Craft.window(decor, at(x, bottom + 7.5, wallZ + 0.6), 7, 5.5, Colors.Sky, Colors.Felt)
-			Craft.picture(decor, at(x + 11, bottom + 8, wallZ + 0.5), 3.5, 2.6, Config.Wallpapers[(floor % 4) + 1][1])
+			Craft.picture(decor, at(x + 11, bottom + 8, wallZ + 0.5), 3.5, 2.6, Config.Wallpapers[(floor % #Config.Wallpapers) + 1][1])
 			Craft.lamp(decor, at(x - 9, bottom + 7, wallZ + 0.5))
 
 			-- Gold room number plate above the window.
@@ -89,6 +137,14 @@ function BombHotel.build(def)
 	Craft.block(model, CFrame.new(at(0, 2, -4.5)), Vector3.new(10, 4, 3), Colors.Wood, M.Wood)
 	Craft.block(decor, CFrame.new(at(0, 4.15, -4.5)), Vector3.new(10.4, 0.3, 3.4), Colors.Felt, M.Felt, Craft.DECOR)
 	Craft.label(decor, at(0, 2, -2.9), 8, 1.6, "RECEPTION", Colors.Paper)
+
+	-- The grandfather clock ticks away on the third floor.
+	buildGrandfatherClock(decor, at(-15, 2 * FLOOR_HEIGHT, wallZ + 1.2))
+
+	-- A low, cozy building hum that fills the whole hotel.
+	local humSpot = Craft.block(decor, CFrame.new(at(0, (FOAM_FLOORS + 1) * FLOOR_HEIGHT / 2, 0)), Vector3.one, Color3.new(), nil, Craft.DECOR)
+	humSpot.Transparency = 1
+	Util.loopSound("HotelHum", humSpot)
 
 	-- Foam floors with a hole on alternating sides, plus foam steps leading up to each hole.
 	for level = 1, FOAM_FLOORS do
@@ -130,6 +186,8 @@ function BombHotel.build(def)
 	Craft.sign(decor, at(0, CHUTE_BOTTOM + 16, wallZ + 1), 46, 9, "HOTEL KABOOM", { bulbs = true, textColor = Colors.Felt })
 	Craft.bunting(decor, at(-W / 2, CHUTE_BOTTOM + 10.5, wallZ + 2), at(W / 2, CHUTE_BOTTOM + 10.5, wallZ + 2))
 	Craft.sticker(decor, at(-36, CHUTE_BOTTOM + 15, wallZ + 1), 5, Colors.Warning, "BOOM!")
+	local timerCenter = at(-28.5, CHUTE_BOTTOM + 16, wallZ + 1.2)
+	local timerHand = buildEggTimer(decor, timerCenter)
 	Craft.sticker(decor, at(36, CHUTE_BOTTOM + 15, wallZ + 1), 5, Color3.fromRGB(90, 160, 220), "POW!")
 
 	-- Brick-ish cardboard columns on the sides.
@@ -161,7 +219,35 @@ function BombHotel.build(def)
 		chutes = chutes,
 		spawns = spawns,
 		killY = O.Y - 20,
+		timerHand = timerHand,
+		frozen = false,
 	}
+end
+
+-- A random spot on top of an intact foam floor block, on a random layer.
+local function plantSpot(stage): Vector3?
+	local candidates = {}
+	for _, block in stage.foam:GetChildren() do
+		if block:IsA("BasePart") and block.Anchored and block:GetAttribute("Breakable") and block.Size.Z == SLAB_DEPTH then
+			table.insert(candidates, block)
+		end
+	end
+	if #candidates == 0 then
+		return nil
+	end
+	local block = candidates[math.random(1, #candidates)]
+	local top = block.Position.Y + block.Size.Y / 2
+	return Vector3.new(block.Position.X, top + 1.2, stage.origin.Z + Util.randomLayer())
+end
+
+local function plantBombs(stage, ctx)
+	while ctx.isActive() do
+		local spot = plantSpot(stage)
+		if spot then
+			task.spawn(Bombs.plant, stage, spot)
+		end
+		task.wait(Config.PlantedBombInterval)
+	end
 end
 
 local function spawnBubbles(stage, ctx)
@@ -176,7 +262,25 @@ end
 
 function BombHotel.run(stage, ctx)
 	task.spawn(spawnBubbles, stage, ctx)
-	task.wait(1)
+
+	-- A few calm seconds: just the hum and the clock.
+	task.wait(3)
+	if not ctx.isActive() then
+		return
+	end
+
+	-- Then the egg timer goes off: buzz-whir, and the spring grinds while the hand spins.
+	local timerFace = stage.timerHand
+	Util.playSound("AlarmBuzz", timerFace)
+	local spring = Util.loopSound("EggTimer", timerFace)
+	timerFace:SetAttribute("Speed", 14)
+	task.wait(2.5)
+	timerFace:SetAttribute("Speed", 0)
+	if spring then
+		spring:Stop()
+	end
+
+	task.spawn(plantBombs, stage, ctx)
 
 	while ctx.isActive() do
 		local progress = ctx.progress()
@@ -188,6 +292,16 @@ function BombHotel.run(stage, ctx)
 			task.wait(0.15)
 		end
 		task.wait(2.4 - 1.6 * progress)
+	end
+end
+
+-- Round over: everything stops exactly where it is.
+function BombHotel.freeze(stage)
+	stage.frozen = true
+	for _, part in stage.model:GetDescendants() do
+		if part:IsA("BasePart") and not part.Anchored then
+			part.Anchored = true
+		end
 	end
 end
 

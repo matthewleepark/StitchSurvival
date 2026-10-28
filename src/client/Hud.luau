@@ -5,7 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-local Sound = require(script.Parent.Sound)
+local Audio = require(script.Parent.Audio)
+local TitleScreen = require(script.Parent.TitleScreen)
 
 local Colors = Config.Colors
 local FONT = Enum.Font.FredokaOne
@@ -128,8 +129,30 @@ local function buildScore()
 	local function updateColor()
 		stripe.BackgroundColor3 = player:GetAttribute("Color") or Colors.Felt
 	end
+	-- Big jumps (bubbles) roll the counter up like a mechanical tally; small ones just update.
+	local shown = 0
+	local rollToken = 0
 	local function updateScore()
-		scoreLabel.Text = tostring(player:GetAttribute("Score") or 0)
+		local target = (player:GetAttribute("Score") :: number?) or 0
+		rollToken += 1
+		local token = rollToken
+		if target - shown <= 5 then
+			shown = target
+			scoreLabel.Text = tostring(target)
+			return
+		end
+		local from = shown
+		task.spawn(function()
+			for step = 1, 6 do
+				if rollToken ~= token then
+					return
+				end
+				shown = math.floor(from + (target - from) * step / 6)
+				scoreLabel.Text = tostring(shown)
+				task.wait(0.04)
+			end
+			bump(scoreLabel)
+		end)
 	end
 	local lastMultiplier = 1
 	local function updateMultiplier()
@@ -233,9 +256,9 @@ local function buildGear()
 	}, card)
 	round(button, 10)
 	outline(button, 2)
+	TitleScreen.wireButton(button)
 	button.Activated:Connect(function()
-		bump(button)
-		Sound.play("GearRoll")
+		Audio.play("GearRoll", nil, "Interface")
 		local remotes = ReplicatedStorage:WaitForChild("Remotes")
 		remotes.RequestRoll:FireServer()
 	end)
@@ -260,7 +283,7 @@ local function onGearResult(result)
 	local subtitle = if result.kept then `{result.rarity}! {result.oxygen}s of air` else `{result.rarity}. You kept your better gear`
 	showPopup(result.name, subtitle, Config.RarityColors[result.rarity])
 	if result.rarity == "Legendary" or result.rarity == "Epic" then
-		Sound.play("Fanfare")
+		Audio.play("Fanfare", nil, "Interface")
 	end
 end
 
@@ -299,7 +322,7 @@ end
 
 local function showCountdown(value: string)
 	local isGo = value == "GO!"
-	Sound.play(if isGo then "Go" else "Countdown")
+	Audio.play(if isGo then "Go" else "Countdown", nil, "Interface")
 	stamp.Text = value
 	stamp.TextColor3 = if isGo then Color3.fromRGB(120, 220, 110) else Colors.Paper
 	stamp.TextTransparency = 0
@@ -393,7 +416,7 @@ local function showResults(data)
 	local scale = results:FindFirstChildOfClass("UIScale") :: UIScale
 	scale.Scale = 0
 	tween(scale, 0.4, { Scale = 1 }, Enum.EasingStyle.Back)
-	Sound.play("Fanfare")
+	-- (Survivors hear the fanfare from the Victory effect; this card is silent.)
 
 	local shown = results
 	task.delay(Config.ResultsTime - 0.5, function()
@@ -416,6 +439,10 @@ function Hud.handle(kind: string, data)
 		showResults(data)
 	elseif kind == "GearResult" then
 		onGearResult(data)
+	elseif kind == "Pop" and data.userId == player.UserId then
+		-- You grabbed a bubble: the tally counter clicks over.
+		Audio.play("TallyClick", nil, "Interface")
+		task.delay(0.08, Audio.play, "TallyClick", nil, "Interface")
 	end
 end
 

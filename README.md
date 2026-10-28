@@ -18,6 +18,7 @@ Better gear means more air underwater.
 - **A / D**: walk left and right
 - **W / S** (tap): hop to the layer behind or in front
 - **Space**: jump (and swim up)
+- **E** (hold): grab walls, crates and blocks. Press jump while hanging to launch off.
 
 ## Running it
 
@@ -43,5 +44,19 @@ To build a place file instead: `rojo build -o StitchSurvival.rbxlx`
 
 ## Sounds
 
-Every sound slot in `Config.Sounds` starts empty. Find audio in Studio (Toolbox > Audio) and paste
-the IDs in, e.g. `Bang = "rbxassetid://1234567890"`.
+Every sound in the game has a slot in `Config.Sounds` (and footsteps in `Config.Footsteps`), each
+with a comment describing what it should sound like. Find audio in Studio (Toolbox > Audio) and
+paste the ID into the slot's `id`, e.g. `id = "rbxassetid://1234567890"`.
+
+Slots with a `fallback` already play a sound built into Roblox until you replace it. The rest are
+silent until you fill them in. Everything about *when* and *where* sounds play is already wired up:
+3D positions, pitch changes, the music changing each round phase, room echo, underwater muffling,
+the end-of-round freeze ducking everything, and the low-health heartbeat.
+
+| Client file | What it does |
+| --- | --- |
+| `src/client/Audio.luau` | Sound groups, music per phase, room echo, underwater muffle, ducking. |
+| `src/client/CharacterAudio.luau` | Footsteps by material, jump/land, oof + zipper, death slide whistle. |
+| `src/client/Danger.luau` | Low-health heartbeat and red screen edges. |
+| `src/client/Grab.luau` | Hold E to grab. |
+| `src/client/TitleScreen.luau` | Main menu with PLAY / HOW TO PLAY. |

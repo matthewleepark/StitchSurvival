@@ -60,7 +60,7 @@ local function collect(player: Player, position: Vector3)
 	lastBubble[player] = now
 	player:SetAttribute("Multiplier", multiplier)
 	Score.add(player, Config.BubblePoints * multiplier, position)
-	Remotes.fireAll("Pop", { position = position })
+	Remotes.fireAll("Pop", { position = position, userId = player.UserId })
 end
 
 function Score.spawnBubble(parent: Instance, position: Vector3, lifetime: number?): Part

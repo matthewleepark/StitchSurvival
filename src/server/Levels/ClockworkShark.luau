@@ -81,18 +81,41 @@ function ClockworkShark.new(stage)
 
 	model.Parent = stage.model
 
-	local whir = Config.Sounds.SharkWhir
-	if whir ~= "" then
-		local sound = Instance.new("Sound")
-		sound.SoundId = whir
-		sound.Looped = true
-		sound.Volume = 0.4
-		sound.Parent = self.pieces[1].part
-		sound:Play()
+	-- Clockwork motor: low and muffled while patrolling underwater, high and fast when hunting.
+	self.motor = Util.loopSound("SharkMotor", self.pieces[1].part)
+	if self.motor then
+		local muffle = Instance.new("EqualizerSoundEffect")
+		muffle.LowGain = 4
+		muffle.MidGain = -6
+		muffle.HighGain = -20
+		muffle.Parent = self.motor
+		self.muffle = muffle
 	end
 
 	self:pose()
 	return self
+end
+
+-- How the motor sounds in each mood.
+local MOTOR = {
+	patrol = { speed = 0.6, volume = 0.6 },
+	hunt = { speed = 1.9, volume = 1 },
+	leap = { speed = 2.3, volume = 1.2 },
+}
+
+function ClockworkShark:setMotor(mood: string, dt: number)
+	local motor = self.motor
+	if not motor then
+		return
+	end
+	local target = MOTOR[mood]
+	local baseVolume = Config.Sounds.SharkMotor.volume or 0.6
+	local blend = math.min(1, dt * 4)
+	motor.PlaybackSpeed += (target.speed - motor.PlaybackSpeed) * blend
+	motor.Volume += (baseVolume * target.volume - motor.Volume) * blend
+	if self.muffle then
+		self.muffle.Enabled = self.position.Y < self.stage.waterTop - 1
+	end
 end
 
 function ClockworkShark:pose()
@@ -167,8 +190,9 @@ function ClockworkShark:startLeap(target: BasePart)
 	self.leapHit = {}
 	self.jawTarget = 0.6
 	self.state = "leap"
+	-- The tissue-paper water rips open as it breaks the surface.
 	Remotes.fireAll("Splash", { position = Vector3.new(self.position.X, stage.waterTop, self.position.Z) })
-	Util.playSound("Splash", self.pieces[1].part)
+	Util.playSound("Breach", self.pieces[1].part)
 end
 
 function ClockworkShark:update(dt: number, progress: number)
@@ -205,9 +229,12 @@ function ClockworkShark:update(dt: number, progress: number)
 			end
 		end
 
+		self:setMotor(if player then "hunt" else "patrol", dt)
+
+		-- Lock on to someone standing on a crate within 60 studs.
 		if self.leapTimer <= 0 then
-			local victim, victimRoot = self:closestPlayer(self.position, onCrate)
-			if victim and victimRoot then
+			local victim, victimRoot, _, victimDistance = self:closestPlayer(self.position, onCrate)
+			if victim and victimRoot and victimDistance <= 60 then
 				self.state = "stalk"
 				self.victim = victim
 				self.stalkTime = 0
@@ -222,6 +249,7 @@ function ClockworkShark:update(dt: number, progress: number)
 			self.leapTimer = 3
 		else
 			self.stalkTime += dt
+			self:setMotor("hunt", dt)
 			local below = self:clampToWater(Vector3.new(root.Position.X - self.facing * 6, stage.waterTop - 7, root.Position.Z), 2)
 			self:moveToward(below, 30, dt)
 			if (self.position - below).Magnitude < 1.5 or self.stalkTime > 1.6 then
@@ -246,6 +274,8 @@ function ClockworkShark:update(dt: number, progress: number)
 			Util.playSound("Chomp", self.jaw)
 		end
 
+		self:setMotor("leap", dt)
+
 		for _, player in Players:GetPlayers() do
 			local humanoid = Util.aliveHumanoid(player)
 			local root = Util.rootPart(player)
@@ -255,9 +285,21 @@ function ClockworkShark:update(dt: number, progress: number)
 			end
 		end
 
+		-- Crashing through a crate snaps it into pieces.
+		for _, crate in stage.crates do
+			if not crate.broken and not crate.busy then
+				local localPoint = crate.box.CFrame:PointToObjectSpace(self.position)
+				local half = crate.box.Size / 2 + Vector3.new(2, 2, 2)
+				if math.abs(localPoint.X) < half.X and math.abs(localPoint.Y) < half.Y and math.abs(localPoint.Z) < half.Z then
+					stage.smashCrate(crate)
+				end
+			end
+		end
+
 		if before.Y >= stage.waterTop and self.position.Y < stage.waterTop then
 			Remotes.fireAll("Splash", { position = Vector3.new(self.position.X, stage.waterTop, self.position.Z) })
 			Util.playSound("Splash", self.pieces[1].part)
+			self.jawTarget = 0
 		end
 
 		if t >= 1 then

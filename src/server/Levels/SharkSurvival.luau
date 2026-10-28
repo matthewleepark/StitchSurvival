@@ -9,6 +9,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Craft = require(script.Parent.Parent.Craft)
+local Remotes = require(script.Parent.Parent.Remotes)
 local Score = require(script.Parent.Parent.Score)
 local Util = require(script.Parent.Parent.Util)
 local ClockworkShark = require(script.Parent.ClockworkShark)
@@ -17,6 +18,7 @@ local Colors = Config.Colors
 local M = Craft.Material
 
 local WATER_DEPTH = 20
+local CRATE_REBUILD_TIME = 10
 local CRATE_XS = { -42, -28, -14, 0, 14, 28, 42 }
 local CRATE_TOP = 22.5
 local SINK_DISTANCE = 8
@@ -57,7 +59,47 @@ local function buildCrate(parent: Instance, center: Vector3, index: number)
 		home = crate:GetPivot(),
 		sinking = false,
 		busy = false,
+		broken = false,
 	}
+end
+
+-- The shark crashed through a crate: SNAP, it splits into four pieces that tilt and sink,
+-- then a fresh crate pops back in a little later.
+local function smashCrate(stage, crate)
+	if crate.broken or stage.frozen then
+		return
+	end
+	crate.broken = true
+	local box = crate.box
+	local cframe, size = box.CFrame, box.Size
+	Util.soundAt("PlatformSnap", cframe.Position)
+
+	local pieces = {}
+	for _, offset in { Vector3.new(-1, 0, -1), Vector3.new(1, 0, -1), Vector3.new(-1, 0, 1), Vector3.new(1, 0, 1) } do
+		local pieceCFrame = cframe * CFrame.new(offset.X * size.X / 4, 0, offset.Z * size.Z / 4)
+		local piece = Craft.block(stage.model, pieceCFrame, Vector3.new(size.X / 2 - 0.2, size.Y, size.Z / 2 - 0.2), box.Color, box.Material, { CanCollide = false })
+		table.insert(pieces, piece)
+		local tilt = CFrame.Angles(math.rad(math.random(-35, 35)), 0, math.rad(math.random(-35, 35)))
+		TweenService:Create(piece, TweenInfo.new(1.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			CFrame = pieceCFrame * CFrame.new(offset.X * 2, -10, 0) * tilt,
+		}):Play()
+	end
+	crate.model:PivotTo(crate.home * CFrame.new(0, -80, 0))
+	task.delay(0.5, Util.soundAt, "PlatformSink", cframe.Position)
+
+	task.delay(1.9, function()
+		for _, piece in pieces do
+			piece:Destroy()
+		end
+	end)
+	task.delay(CRATE_REBUILD_TIME, function()
+		if crate.model.Parent and not stage.frozen then
+			crate.model:PivotTo(crate.home)
+			crate.broken = false
+			Util.playSound("TeleportPop", crate.box)
+			Remotes.fireAll("Poof", { position = crate.home.Position + Vector3.new(0, 2, 0), color = Colors.Cardboard })
+		end
+	end)
 end
 
 function SharkSurvival.build(def)
@@ -145,6 +187,11 @@ function SharkSurvival.build(def)
 	local sheet = Craft.block(decor, CFrame.new(at(0, (WATER_DEPTH - 2.5) / 2, depth / 2 - 0.05)), Vector3.new(W, WATER_DEPTH - 2.5, 0.05), Colors.Sea, M.Plastic, Craft.DECOR)
 	sheet.Transparency = 0.82
 
+	-- The water is a constant rustle of tissue paper.
+	local rustleSpot = Craft.block(decor, CFrame.new(at(0, WATER_DEPTH, 0)), Vector3.one, Color3.new(), nil, Craft.DECOR)
+	rustleSpot.Transparency = 1
+	Util.loopSound("WaterRustle", rustleSpot)
+
 	-- Floating crates, and sturdy docks at each end.
 	local crates = {}
 	for i, x in CRATE_XS do
@@ -172,7 +219,7 @@ function SharkSurvival.build(def)
 		spawns[i] = crate.home * CFrame.new(0, 4, Config.Layers[(i % 3) + 1] - 0.5)
 	end
 
-	return {
+	local stage = {
 		model = model,
 		origin = O,
 		width = W,
@@ -180,10 +227,15 @@ function SharkSurvival.build(def)
 		crates = crates,
 		spawns = spawns,
 		killY = O.Y - 30,
+		frozen = false,
 		contains = function(position: Vector3): boolean
 			return math.abs(position.X - O.X) <= W / 2 + 2 and math.abs(position.Z - O.Z) <= depth
 		end,
 	}
+	stage.smashCrate = function(crate)
+		smashCrate(stage, crate)
+	end
+	return stage
 end
 
 local function markSinking(crate)
@@ -205,8 +257,12 @@ local function sink(crate)
 	progress.Changed:Connect(function(value)
 		crate.model:PivotTo(crate.home * CFrame.new(0, -SINK_DISTANCE * value, 0))
 	end)
+	Util.playSound("PlatformSwish", crate.box)
 	TweenService:Create(progress, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Value = 1 }):Play()
-	task.wait(3.8)
+	task.wait(0.5)
+	Util.playSound("PlatformSink", crate.box)
+	task.wait(3.3)
+	Util.playSound("PlatformSwish", crate.box)
 	TweenService:Create(progress, TweenInfo.new(1.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Value = 0 }):Play()
 	task.wait(1.6)
 	progress:Destroy()
@@ -272,7 +328,7 @@ function SharkSurvival.run(stage, ctx)
 
 	for _, crate in stage.crates do
 		crate.box.Touched:Connect(function(hit)
-			if crate.sinking and not crate.busy then
+			if crate.sinking and not crate.busy and not crate.broken and not stage.frozen then
 				local character = Util.characterFromPart(hit)
 				if character and Players:GetPlayerFromCharacter(character) then
 					task.spawn(sink, crate)
@@ -305,6 +361,11 @@ function SharkSurvival.run(stage, ctx)
 	for _, player in Players:GetPlayers() do
 		player:SetAttribute("Oxygen", nil)
 	end
+end
+
+-- Round over: the shark is already stopped; just make sure crates stay put.
+function SharkSurvival.freeze(stage)
+	stage.frozen = true
 end
 
 function SharkSurvival.cleanup(stage)
