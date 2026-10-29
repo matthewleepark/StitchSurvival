@@ -1,25 +1,24 @@
--- Client entry point: title screen, side-on camera, depth layers, HUD, audio and effects.
+-- Client entry point: title screen, HUD, audio, effects, grabbing and screen shake.
+-- The camera is the normal Roblox third-person camera.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Audio = require(script.Audio)
+local CameraShake = require(script.CameraShake)
 local CharacterAudio = require(script.CharacterAudio)
 local Danger = require(script.Danger)
 local Effects = require(script.Effects)
 local Grab = require(script.Grab)
 local Hud = require(script.Hud)
-local Layers = require(script.Layers)
-local StageCamera = require(script.StageCamera)
 local TitleScreen = require(script.TitleScreen)
 
-StageCamera.start()
+CameraShake.start()
 Audio.start()
 Hud.start()
 Effects.start()
 CharacterAudio.start()
 Danger.start()
 Grab.start()
-task.spawn(Layers.start) -- waits for the default control script to load
 
 TitleScreen.show(function()
 	Audio.beginGame()

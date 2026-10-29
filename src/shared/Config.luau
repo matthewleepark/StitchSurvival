@@ -11,16 +11,25 @@ Config.CountdownTime = 3
 Config.RoundTime = 120
 Config.ResultsTime = 7
 
--- Bomb Hotel: a planted time bomb appears this often, beeps faster and faster, then
--- blows a hole through the floors, collapses the blocks around it and starts a fire.
-Config.PlantedBombInterval = 15
-Config.PlantedBombFuse = 8
+-- World physics: a floaty, low-gravity toybox (Roblox's normal gravity is 196.2).
+Config.Gravity = 35
 
--- Scoring (LBP-style: points, score bubbles, and a combo multiplier) ---------
+-- Bomb Hotel: every 15 seconds a bomb is dropped at a random spot inside the hotel. Its timer
+-- ticks twice a second, doubles speed for the last 5 seconds, then it explodes: everything
+-- within 25 studs (floor blocks, pillars, ramps) is ripped loose and thrown outward.
+Config.PlantedBombInterval = 15
+Config.PlantedBombFuse = 12
+Config.PlantedBombBlastRadius = 25
+
+-- Shark Survival: the shark switches from patrolling to hunting when a player is this close.
+Config.SharkHuntRadius = 45
+
+-- Scoring: each score bubble is worth 10 points. Raise MaxMultiplier (e.g. to 8) to turn on
+-- LBP-style combos, where grabbing bubbles quickly multiplies their value.
 
 Config.SurvivalPointsPerSecond = 5
 Config.BubblePoints = 10
-Config.MaxMultiplier = 8
+Config.MaxMultiplier = 1
 Config.MultiplierWindow = 4 -- grab another bubble within this many seconds to keep the combo
 Config.SurviveBonus = 500
 Config.PointsPerSticker = 50
@@ -39,15 +48,13 @@ Config.PlayerColors = {
 }
 
 -- Stage layout ---------------------------------------------------------------
--- Every stage is a side-on diorama. Players move left/right, and W/S hops between
--- three depth layers. The camera always looks at the stage from the front (+Z).
-
-Config.Layers = { -5, 0, 5 }
-Config.StageDepth = 16
+-- Every stage is a full 3D space with the normal Roblox third-person camera.
+-- origin = the center of the stage's floor. width = left-right (X), depth = front-back (Z).
 
 Config.Pod = {
 	origin = Vector3.new(0, 20, 0),
 	width = 64,
+	depth = 48,
 	height = 36,
 }
 
@@ -58,15 +65,18 @@ Config.Levels = {
 		weight = 50,
 		origin = Vector3.new(0, 20, 400),
 		width = 96,
-		height = 96,
+		depth = 96,
 		floors = 5, -- the lobby plus four breakable foam floors above it
+		floorHeight = 16, -- studs from one floor to the next (ramps get longer if you raise it)
+		height = 5 * 16 + 20,
 	},
 	{
 		name = "SharkSurvival",
 		title = "Shark Survival",
 		weight = 50,
-		origin = Vector3.new(0, 20, 800),
-		width = 112,
+		origin = Vector3.new(0, 20, 900),
+		width = 300,
+		depth = 300,
 		height = 48,
 		waterDepth = 20,
 	},
@@ -109,7 +119,12 @@ Config.Wallpapers = {
 Config.Doll = {
 	Enabled = true,
 	RemoveClothing = true,
+	Scale = 0.6, -- shrinks avatars to about 3 studs tall, like a little sack doll
+	Ragdoll = true, -- when popped, all the joints go loose instead of falling apart
 }
+
+-- Below this fraction of health the heartbeat starts and the world sounds muffled.
+Config.LowHealth = 0.4
 
 -- Scuba gear (the RNG) ----------------------------------------------------------
 -- Players roll at the gear machine in the lobby. More oxygen = longer underwater.
@@ -186,13 +201,16 @@ Config.Sounds = {
 	AlarmBuzz = { id = "", volume = 0.7, range = 200 }, -- alarming buzz-whir as the round kicks off
 	EggTimer = { id = "", volume = 0.5, looped = true, range = 200 }, -- egg timer spring grinding: Zzzzzzz
 	BombBell = { id = "", volume = 0.7, range = 120 }, -- sharp metal bicycle bell "ping": a new bomb appeared
-	BombBeep = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.7, speed = 2.6, range = 30 }, -- bright electronic beep
-	BombTone = { id = "", volume = 0.8, looped = true, range = 30 }, -- the solid "Beeeeeee" right before it goes off
-	Tick = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.3, speed = 3, range = 40 }, -- falling bombs' fuse click
+	BombTick = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.7, speed = 2.6, range = 30 }, -- the bomb's egg-timer tick (twice a second, then double speed)
+	FuseHiss = { id = "", volume = 0.5, looped = true, range = 30 }, -- sputtering fuse hiss, ssssss-krrr-ssss, like a burning flare
+	BombLand = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.8, speed = 0.55, range = 60 }, -- heavy hollow thud as a bomb hits the floor
 	Bang = { id = "", fallback = BUILTIN .. "impact_explosion_03.mp3", volume = 1, range = 250 }, -- CRACK-FOOM: giant paper bag pop + thunder clap
 	VelcroRip = { id = "", volume = 0.8, range = 150 }, -- riiiiip of industrial Velcro as walls tear loose
 	BlockBreak = { id = "", volume = 0.6, range = 100 }, -- dry wood snapping + phonebook ripping
 	DebrisThud = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.8, speed = 0.5, range = 100 }, -- heavy hollow thud-clatter
+	DebrisWhistle = { id = "", volume = 0.5, range = 80 }, -- descending fshhhhh as a block falls through the air
+	Rumble = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.7, speed = 0.3, range = 60 }, -- low grrrr-whump through the floor
+	Gasp = { id = "", fallback = BUILTIN .. "ouch.ogg", volume = 0.5, speed = 1.3, range = 50 }, -- quick airless fabric gasp "uh!" while burning
 	Crush = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 1, speed = 0.35, range = 80 }, -- wet heavy squish (crushed!)
 	FireCrackle = { id = "", volume = 0.5, looped = true, range = 50 }, -- stiff orange cellophane being crinkled
 
@@ -204,6 +222,8 @@ Config.Sounds = {
 	PlatformSnap = { id = "", volume = 0.8, range = 120 }, -- wooden popsicle stick SNAP
 	PlatformSink = { id = "", volume = 0.6, range = 100 }, -- fizz-muffle / gurgle-glug as it sinks
 	PlatformSwish = { id = "", volume = 0.4, range = 60 }, -- soft swish-shhh against the paper ocean
+	RaftSqueak = { id = "", volume = 0.5, range = 50 }, -- damp squeak-crunch of foam when you land on a raft
+	PlatformSlosh = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.4, speed = 0.7, range = 60 }, -- wet slosh-muffle as a raft edge dips under
 	Splash = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.7, range = 120 },
 
 	-- Players ----------------------------------------------------------------------------------
@@ -218,6 +238,8 @@ Config.Sounds = {
 	GrabTack = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.6, speed = 0.9, range = 60 }, -- duct tape slapped on a table
 	GrabCreak = { id = "", volume = 0.4, looped = true, range = 50 }, -- yarn straining creak-uuuup-creak
 	GrabRelease = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.5, speed = 2.6, range = 60 }, -- rubber band flick
+	JumpWhoosh = { id = "", volume = 0.25, range = 40 }, -- low sweeping whoosh of air at the top of a jump
+	BubbleHum = { id = "", volume = 0.15, looped = true, range = 14 }, -- faint crystalline mmm-ring-mmm from each score bubble
 	BubblePop = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.6, speed = 3.2, range = 80 }, -- glassy "ting!" (marble on crystal)
 }
 

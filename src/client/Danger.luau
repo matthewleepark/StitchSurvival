@@ -1,10 +1,14 @@
--- Low-health warning. Under 50% health a heavy heartbeat (thump-thump) pounds in both ears,
--- getting faster and more distorted the lower you go, and the music is pushed way down.
+-- Low-health warning. Under 40% health a heavy heartbeat (thump-thump) pounds in both ears,
+-- getting faster and more distorted the lower you go. The music and the world around you lose
+-- their bright, crisp edges (as if you're dazed), while your own footsteps and the heartbeat
+-- stay perfectly clear.
 -- The screen edges pulse red in time with it. Taking any hit also flashes the edges.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local Audio = require(script.Parent.Audio)
 
 local player = Players.LocalPlayer
@@ -92,9 +96,11 @@ function Danger.start()
 			local character = player.Character
 			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 			local ratio = if humanoid and humanoid.MaxHealth > 0 then humanoid.Health / humanoid.MaxHealth else 1
-			if humanoid and humanoid.Health > 0 and ratio < 0.5 then
-				local level = (0.5 - ratio) / 0.5 -- 0 at half health, 1 at almost dead
-				Audio.setFactor("Music", "danger", 0.15, 0.3)
+			local threshold = Config.LowHealth
+			if humanoid and humanoid.Health > 0 and ratio < threshold then
+				local level = (threshold - ratio) / threshold -- 0 at the threshold, 1 at almost dead
+				Audio.setFactor("Music", "danger", 0.5, 0.3)
+				Audio.setMuffle("danger", true)
 
 				-- thump-thump, with the screen edges pulsing along.
 				thump(level)
@@ -105,6 +111,7 @@ function Danger.start()
 				task.wait(math.max(0.25, 0.85 - level * 0.55))
 			else
 				Audio.setFactor("Music", "danger", 1, 0.8)
+				Audio.setMuffle("danger", false)
 				task.wait(0.25)
 			end
 		end

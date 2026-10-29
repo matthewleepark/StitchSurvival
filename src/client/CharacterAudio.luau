@@ -10,12 +10,12 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local SoundBank = require(ReplicatedStorage.Shared.SoundBank)
 local Audio = require(script.Parent.Audio)
-local StageCamera = require(script.Parent.StageCamera)
+local CameraShake = require(script.Parent.CameraShake)
 
 local localPlayer = Players.LocalPlayer
 
 local REPLACED_DEFAULTS = { Running = true, Jumping = true, Landing = true, Died = true }
-local HEAVY_LANDING_SPEED = 45
+local HEAVY_LANDING_SPEED = 28 -- falling faster than this (about one floor) is a heavy landing
 
 local CharacterAudio = {}
 
@@ -29,6 +29,7 @@ type Tracked = {
 	floorPart: BasePart?,
 	floorY: number,
 	pitch: number,
+	lastVelocityY: number,
 }
 
 local tracked: { [Model]: Tracked } = {}
@@ -42,7 +43,7 @@ local function footstepSound(root: BasePart, style: string): Sound?
 	end
 	sound.Looped = true
 	sound.RollOffMaxDistance = 50
-	sound.SoundGroup = Audio.group("Effects")
+	sound.SoundGroup = Audio.group("Footsteps")
 
 	if def.muffled then
 		-- Felt: soft thump, no ring at all.
@@ -114,6 +115,7 @@ local function track(character: Model)
 		floorPart = nil,
 		floorY = 0,
 		pitch = 1,
+		lastVelocityY = 0,
 	}
 	tracked[character] = entry
 	local isLocal = character == localPlayer.Character
@@ -128,7 +130,14 @@ local function track(character: Model)
 			if entry.lowestFall < -HEAVY_LANDING_SPEED then
 				Audio.play("LandHeavy", root)
 				if isLocal then
-					StageCamera.shake(0.6)
+					-- The puppet's limbs rattle and it staggers: half speed for a moment.
+					CameraShake.shake(0.6)
+					humanoid.WalkSpeed = 8
+					task.delay(0.5, function()
+						if humanoid.WalkSpeed == 8 then
+							humanoid.WalkSpeed = 16
+						end
+					end)
 				end
 			else
 				Audio.play("LandSoft", root)
@@ -176,6 +185,11 @@ local function update(dt: number)
 		if velocityY < entry.lowestFall then
 			entry.lowestFall = velocityY
 		end
+		-- At the very top of a jump: a low whoosh of air.
+		if entry.lastVelocityY > 2 and velocityY <= 0 and humanoid.FloorMaterial == Enum.Material.Air then
+			Audio.play("JumpWhoosh", root)
+		end
+		entry.lastVelocityY = velocityY
 
 		local state = humanoid:GetState()
 		local walking = humanoid.MoveDirection.Magnitude > 0.1

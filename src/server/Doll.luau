@@ -1,5 +1,7 @@
--- Turns every character into a little knitted burlap doll with a zipper in their player color.
--- Hats and accessories stay on, like costumes.
+-- Turns every character into a little knitted burlap doll, about 3 studs tall, with a zipper in
+-- their player color. Hats and accessories stay on, like costumes.
+-- When a doll is popped it goes completely floppy: every joint turns into a loose ball-and-socket
+-- so the arms, legs and head tumble around (a ragdoll) instead of falling off.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,7 +22,50 @@ local function attach(part: BasePart, to: BasePart)
 	part.Parent = to
 end
 
+-- Swap every motor joint for a loose ball-and-socket joint.
+local function ragdoll(character: Model)
+	for _, joint in character:GetDescendants() do
+		if joint:IsA("Motor6D") and joint.Part0 and joint.Part1 then
+			local a0 = Instance.new("Attachment")
+			a0.CFrame = joint.C0
+			a0.Parent = joint.Part0
+			local a1 = Instance.new("Attachment")
+			a1.CFrame = joint.C1
+			a1.Parent = joint.Part1
+			local socket = Instance.new("BallSocketConstraint")
+			socket.Attachment0 = a0
+			socket.Attachment1 = a1
+			socket.LimitsEnabled = true
+			socket.TwistLimitsEnabled = true
+			socket.UpperAngle = 70
+			socket.Parent = joint.Parent
+			joint.Enabled = false
+		end
+	end
+	for _, part in character:GetChildren() do
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			part.CanCollide = true
+		end
+	end
+end
+
+local function setUpCharacter(character: Model)
+	local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+	if not humanoid or not Config.Doll.Ragdoll then
+		return
+	end
+	humanoid.BreakJointsOnDeath = false
+	humanoid.Died:Connect(function()
+		ragdoll(character)
+	end)
+end
+
 local function dress(player: Player, character: Model)
+	-- Shrink to sack-doll size first, so the zipper is sized to the small torso.
+	if Config.Doll.Scale ~= 1 then
+		character:ScaleTo(Config.Doll.Scale)
+	end
+
 	if Config.Doll.RemoveClothing then
 		for _, item in character:GetChildren() do
 			if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("ShirtGraphic") then
@@ -76,6 +121,10 @@ function Doll.start()
 		return
 	end
 	local function watch(player: Player)
+		player.CharacterAdded:Connect(setUpCharacter)
+		if player.Character then
+			task.spawn(setUpCharacter, player.Character)
+		end
 		player.CharacterAppearanceLoaded:Connect(function(character)
 			dress(player, character)
 		end)

@@ -63,14 +63,24 @@ local function collect(player: Player, position: Vector3)
 	Remotes.fireAll("Pop", { position = position, userId = player.UserId })
 end
 
+-- A glossy 2-stud plastic bubble with a little tin-foil star inside. It bobs gently (animated on
+-- each player's screen) and hums faintly when you're close.
 function Score.spawnBubble(parent: Instance, position: Vector3, lifetime: number?): Part
-	local bubble = Craft.ball(parent, position, 1.8, Config.Colors.Bubble, Enum.Material.ForceField, {
+	local bubble = Craft.ball(parent, position, 2, Config.Colors.Bubble, Enum.Material.Glass, {
 		Name = "ScoreBubble",
 		CanCollide = false,
 		CanQuery = false,
+		Transparency = 0.45,
+		Reflectance = 0.2,
 	})
+	local star = Craft.block(bubble, CFrame.new(position) * CFrame.Angles(0, 0, math.rad(45)), Vector3.new(0.7, 0.7, 0.15), Config.Colors.Gold, Enum.Material.Foil, Craft.DECOR)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = bubble
+	weld.Part1 = star
+	weld.Parent = star
 	bubble:SetAttribute("BaseY", position.Y)
 	Craft.tag(bubble, "Bob")
+	Util.loopSound("BubbleHum", bubble)
 
 	local collected = false
 	bubble.Touched:Connect(function(hit)

@@ -1,5 +1,19 @@
--- A wind-up toy shark. It patrols with its fin poking out of the water, chases swimmers,
--- and every few seconds stalks someone standing on a crate and leaps out at them.
+-- The clockwork shark.
+--
+-- Body: about 15 studs long, built from three plywood segments covered in coarse gray felt and
+-- joined by brass hinges. Glowing gold clockwork gears spin in the gaps between segments, and a
+-- wind-up key turns on its back. The segments swing side to side as it swims (faster when it's
+-- hunting). Its plywood jaws are lined with white felt teeth and button eyes sit on each side.
+--
+-- Behavior:
+--   Patrol: it cruises a loop of points around the ocean, a few studs under the paper surface.
+--     Its motor purrs low and slow, muffled by the water.
+--   Hunt: five times a second it looks for the closest living player within 45 studs (on a raft
+--     or in the water). Once it locks on, the motor pitches up and races.
+--   Swimmers: if it reaches a player in the water, its jaws CLACK shut on them. Instantly popped.
+--   Raft riders: it gets underneath, then breaches up through the paper (RIP-CRUNCH), arcs
+--     through the target and dives back in. Anyone it hits is popped, and any raft in its path
+--     SNAPs into pieces.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,81 +27,111 @@ local Util = require(script.Parent.Parent.Util)
 local Colors = Config.Colors
 local M = Craft.Material
 
-local BODY_COLOR = Color3.fromRGB(96, 124, 160)
-local BELLY_COLOR = Color3.fromRGB(226, 220, 200)
+local FELT_GRAY = Color3.fromRGB(128, 128, 136)
+local PLYWOOD = Color3.fromRGB(200, 166, 116)
 local BITE_RANGE = 4.5
-local BITE_DAMAGE = 35
-local BITE_COOLDOWN = 1.5
-local LEAP_TIME = 1.3
-local LEAP_DAMAGE = 60
-local LEAP_HIT_RANGE = 5
+local LEAP_TIME = 1.4
+local LEAP_HIT_RANGE = 5.5
+local LEAP_COOLDOWN = 3
+local TARGET_CHECK_INTERVAL = 0.2
+local PATROL_DEPTH = 5 -- studs under the surface while cruising
+
+-- Segment lengths, front to back, and the gaps between them where the gears show.
+local HEAD_LENGTH = 5
+local MID_LENGTH = 4
+local REAR_LENGTH = 3.4
+local GAP = 0.6
 
 local ClockworkShark = {}
 ClockworkShark.__index = ClockworkShark
 
-local function jawOffset(open: number): CFrame
-	return CFrame.new(3.2, -1.5, 0) * CFrame.Angles(0, 0, -open) * CFrame.new(2.2, -0.4, 0)
+local NO_COLLIDE = { CanCollide = false, CanQuery = false, CanTouch = false }
+
+-- Builds one part at the origin; pose() moves it into place every frame.
+local function piece(model: Instance, size: Vector3, color: Color3, material: Enum.Material, shape: Enum.PartType?): Part
+	local part = Craft.block(model, CFrame.identity, size, color, material, NO_COLLIDE)
+	if shape then
+		part.Shape = shape
+	end
+	return part
 end
 
 function ClockworkShark.new(stage)
 	local self = setmetatable({}, ClockworkShark)
 	self.stage = stage
-	self.pieces = {}
-	self.position = stage.origin + Vector3.new(0, 8, 0)
-	self.facing = 1
+	self.yaw = 0
 	self.pitch = 0
-	self.keyAngle = 0
+	self.swim = 0 -- drives the side-to-side wiggle
+	self.gearAngle = 0
 	self.jawOpen = 0
 	self.jawTarget = 0
-	self.state = "swim"
-	self.leapTimer = 6
-	self.patrolX = 0
-	self.lastBite = {}
+	self.state = "patrol"
+	self.target = nil
+	self.targetCheck = 0
+	self.leapCooldown = 4
+	self.mood = "patrol"
+
+	-- Patrol loop: a ring of points around the middle of the ocean.
+	self.nodes = {}
+	for i = 0, 7 do
+		local angle = i / 8 * math.pi * 2
+		table.insert(self.nodes, stage.origin + Vector3.new(math.cos(angle) * 60, 0, math.sin(angle) * 60))
+	end
+	self.nodeIndex = 1
+	self.position = self.nodes[1] + Vector3.new(0, stage.waterTop - stage.origin.Y - PATROL_DEPTH, 0)
 
 	local model = Instance.new("Model")
 	model.Name = "ClockworkShark"
 	self.model = model
 
-	local props = { CanCollide = false, CanQuery = false, CanTouch = false }
-	local function piece(part: BasePart, localPosition: Vector3)
-		table.insert(self.pieces, { part = part, offset = CFrame.new(localPosition) * part.CFrame.Rotation })
-		return part
-	end
-
-	-- Body: a felt tube with rounded ends. The shark faces +X in its own space.
-	piece(Craft.cylinder(model, Vector3.zero, 11, 5, "X", BODY_COLOR, M.Felt, props), Vector3.zero)
-	piece(Craft.ball(model, Vector3.zero, 4.8, BODY_COLOR, M.Felt, props), Vector3.new(5.4, 0.1, 0))
-	piece(Craft.ball(model, Vector3.zero, 3.4, BODY_COLOR, M.Felt, props), Vector3.new(-5.6, 0, 0))
-	piece(Craft.block(model, CFrame.identity, Vector3.new(10, 1, 4.4), BELLY_COLOR, M.Felt, props), Vector3.new(0.5, -2, 0))
-	piece(Craft.diamond(model, Vector3.zero, 3.6, BODY_COLOR, M.Felt, props), Vector3.new(-0.5, 2.5, 0))
-	piece(Craft.diamond(model, Vector3.zero, 4.2, BODY_COLOR, M.Felt, props), Vector3.new(-8.6, 0.4, 0))
-	piece(Craft.diamond(model, Vector3.zero, 2, BODY_COLOR, M.Felt, props), Vector3.new(1.5, -2.6, 0))
-
-	-- Button eyes on both sides so it looks right facing either way.
+	-- Head: plywood box covered in felt, with a rounded snout, button eyes, and teeth.
+	self.head = piece(model, Vector3.new(HEAD_LENGTH, 3.4, 3.6), FELT_GRAY, M.Felt)
+	self.snout = piece(model, Vector3.new(3.4, 3.4, 3.4), FELT_GRAY, M.Felt, Enum.PartType.Ball)
+	self.upperJaw = piece(model, Vector3.new(3, 0.6, 3.4), PLYWOOD, M.Wood)
+	self.lowerJaw = piece(model, Vector3.new(3.6, 0.8, 3.2), PLYWOOD, M.Wood)
+	self.eyes = {}
 	for _, side in { -1, 1 } do
-		piece(Craft.disc(model, Vector3.zero, 1.5, Color3.new(1, 1, 1), M.Felt, props), Vector3.new(4.6, 1, side * 2.45))
-		piece(Craft.disc(model, Vector3.zero, 0.8, Color3.fromRGB(30, 30, 30), M.Plastic, props), Vector3.new(4.8, 1, side * 2.6))
-		for i = 0, 2 do
-			piece(Craft.block(model, CFrame.identity, Vector3.new(0.4, 0.6, 0.2), Color3.new(1, 1, 1), M.Plastic, props), Vector3.new(5.6 + i * 0.6, -1.2, side * 2.1))
+		table.insert(self.eyes, { white = piece(model, Vector3.new(0.3, 1.4, 1.4), Color3.new(1, 1, 1), M.Felt, Enum.PartType.Cylinder), button = piece(model, Vector3.new(0.3, 0.7, 0.7), Color3.fromRGB(30, 30, 30), M.Plastic, Enum.PartType.Cylinder), side = side })
+	end
+	self.teeth = {}
+	for i = 0, 3 do
+		for _, side in { -1, 1 } do
+			table.insert(self.teeth, { upper = piece(model, Vector3.new(0.4, 0.6, 0.3), Color3.new(1, 1, 1), M.Felt), lower = piece(model, Vector3.new(0.4, 0.5, 0.3), Color3.new(1, 1, 1), M.Felt), x = 0.4 + i * 0.7, side = side })
 		end
 	end
 
-	-- Plywood lower jaw on a hinge.
-	self.jaw = Craft.block(model, CFrame.identity, Vector3.new(4.4, 0.9, 3.6), Color3.fromRGB(196, 160, 110), M.Wood, props)
+	-- Middle and rear segments, a tail fin, a dorsal fin, and side fins.
+	self.mid = piece(model, Vector3.new(MID_LENGTH, 3.2, 3.4), FELT_GRAY, M.Felt)
+	self.rear = piece(model, Vector3.new(REAR_LENGTH, 2.6, 2.8), FELT_GRAY, M.Felt)
+	self.tail = piece(model, Vector3.new(2.6, 2.6, 0.3), FELT_GRAY, M.Felt)
+	self.dorsal = piece(model, Vector3.new(2.4, 2.4, 0.3), FELT_GRAY, M.Felt)
+	self.fins = { piece(model, Vector3.new(1.8, 0.3, 1.8), FELT_GRAY, M.Felt), piece(model, Vector3.new(1.8, 0.3, 1.8), FELT_GRAY, M.Felt) }
 
-	-- Wind-up key.
-	piece(Craft.cylinder(model, Vector3.zero, 1.4, 0.5, "Y", Colors.Gold, M.Metal, props), Vector3.new(-1.5, 3.2, 0))
-	self.key = Craft.block(model, CFrame.identity, Vector3.new(0.3, 1.4, 3), Colors.Gold, M.Metal, props)
+	-- Brass hinges and glowing gears in the two gaps.
+	self.hinges = { piece(model, Vector3.new(0.5, 2.4, 0.5), Colors.Gold, M.Metal), piece(model, Vector3.new(0.5, 2, 0.5), Colors.Gold, M.Metal) }
+	self.gears = {}
+	for _ = 1, 2 do
+		local gear = piece(model, Vector3.new(0.4, 2.6, 2.6), Colors.Gold, M.Neon, Enum.PartType.Cylinder)
+		local light = Instance.new("PointLight")
+		light.Color = Colors.Gold
+		light.Range = 8
+		light.Brightness = 1.2
+		light.Parent = gear
+		table.insert(self.gears, gear)
+	end
+	self.key = piece(model, Vector3.new(0.3, 1.6, 2.6), Colors.Gold, M.Metal)
+	self.keyShaft = piece(model, Vector3.new(0.4, 1.4, 0.4), Colors.Gold, M.Metal)
 
 	model.Parent = stage.model
+	Craft.tag(self.mid, "Occluded")
 
 	-- Clockwork motor: low and muffled while patrolling underwater, high and fast when hunting.
-	self.motor = Util.loopSound("SharkMotor", self.pieces[1].part)
+	self.motor = Util.loopSound("SharkMotor", self.mid)
 	if self.motor then
 		local muffle = Instance.new("EqualizerSoundEffect")
-		muffle.LowGain = 4
+		muffle.LowGain = 6
 		muffle.MidGain = -6
-		muffle.HighGain = -20
+		muffle.HighGain = -24
 		muffle.Parent = self.motor
 		self.muffle = muffle
 	end
@@ -96,19 +140,64 @@ function ClockworkShark.new(stage)
 	return self
 end
 
--- How the motor sounds in each mood.
-local MOTOR = {
-	patrol = { speed = 0.6, volume = 0.6 },
-	hunt = { speed = 1.9, volume = 1 },
-	leap = { speed = 2.3, volume = 1.2 },
-}
+-- Moves every part into place for this frame: the head leads, and each segment behind it
+-- swings a little further on its hinge, like a swimming fish.
+function ClockworkShark:pose()
+	local wiggleSize = if self.mood == "patrol" then 0.18 else 0.32
+	local w1 = math.sin(self.swim) * wiggleSize
+	local w2 = math.sin(self.swim - 0.9) * wiggleSize * 1.4
+
+	local root = CFrame.new(self.position) * CFrame.Angles(0, self.yaw, 0) * CFrame.Angles(0, 0, self.pitch)
+
+	-- Head (the shark faces +X in its own space).
+	self.head.CFrame = root
+	self.snout.CFrame = root * CFrame.new(HEAD_LENGTH / 2, 0, 0)
+	self.upperJaw.CFrame = root * CFrame.new(HEAD_LENGTH / 2 + 0.3, -1, 0)
+	local jawHinge = root * CFrame.new(0.6, -1.4, 0)
+	self.lowerJaw.CFrame = jawHinge * CFrame.Angles(0, 0, -self.jawOpen) * CFrame.new(1.8, -0.3, 0)
+	for _, tooth in self.teeth do
+		tooth.upper.CFrame = root * CFrame.new(HEAD_LENGTH / 2 - 0.4 + tooth.x - 1.2, -1.5, tooth.side * 1.4)
+		tooth.lower.CFrame = self.lowerJaw.CFrame * CFrame.new(tooth.x - 1, 0.6, tooth.side * 1.3)
+	end
+	for _, eye in self.eyes do
+		local spot = root * CFrame.new(1.2, 0.6, eye.side * 1.85) * CFrame.Angles(0, math.rad(90), 0)
+		eye.white.CFrame = spot
+		eye.button.CFrame = spot * CFrame.new(-eye.side * 0.12, 0, 0)
+	end
+	self.fins[1].CFrame = root * CFrame.new(-0.5, -1.4, 2.4) * CFrame.Angles(math.rad(-25), math.rad(45), 0)
+	self.fins[2].CFrame = root * CFrame.new(-0.5, -1.4, -2.4) * CFrame.Angles(math.rad(25), math.rad(45), 0)
+
+	-- First hinge and gear, then the middle segment.
+	local hinge1 = root * CFrame.new(-HEAD_LENGTH / 2 - GAP / 2, 0, 0)
+	self.hinges[1].CFrame = hinge1
+	self.gears[1].CFrame = hinge1 * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(self.gearAngle, 0, 0)
+	local midFrame = hinge1 * CFrame.Angles(0, w1, 0) * CFrame.new(-GAP / 2 - MID_LENGTH / 2, 0, 0)
+	self.mid.CFrame = midFrame
+	self.dorsal.CFrame = midFrame * CFrame.new(0, 1.8, 0) * CFrame.Angles(0, 0, math.rad(45))
+	self.keyShaft.CFrame = midFrame * CFrame.new(-0.8, 2, 0)
+	self.key.CFrame = midFrame * CFrame.new(-0.8, 2.9, 0) * CFrame.Angles(0, self.gearAngle * 0.5, 0)
+
+	-- Second hinge and gear, then the rear segment and tail.
+	local hinge2 = midFrame * CFrame.new(-MID_LENGTH / 2 - GAP / 2, 0, 0)
+	self.hinges[2].CFrame = hinge2
+	self.gears[2].CFrame = hinge2 * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(-self.gearAngle, 0, 0)
+	local rearFrame = hinge2 * CFrame.Angles(0, w2, 0) * CFrame.new(-GAP / 2 - REAR_LENGTH / 2, 0, 0)
+	self.rear.CFrame = rearFrame
+	self.tail.CFrame = rearFrame * CFrame.new(-REAR_LENGTH / 2 - 1, 0, 0) * CFrame.Angles(0, w2, math.rad(45))
+end
 
 function ClockworkShark:setMotor(mood: string, dt: number)
+	self.mood = mood
 	local motor = self.motor
 	if not motor then
 		return
 	end
-	local target = MOTOR[mood]
+	local targets = {
+		patrol = { speed = 0.6, volume = 0.6 },
+		hunt = { speed = 1.9, volume = 1 },
+		leap = { speed = 2.3, volume = 1.2 },
+	}
+	local target = targets[mood]
 	local baseVolume = Config.Sounds.SharkMotor.volume or 0.6
 	local blend = math.min(1, dt * 4)
 	motor.PlaybackSpeed += (target.speed - motor.PlaybackSpeed) * blend
@@ -118,25 +207,21 @@ function ClockworkShark:setMotor(mood: string, dt: number)
 	end
 end
 
-function ClockworkShark:pose()
-	local root = CFrame.new(self.position)
-		* CFrame.Angles(0, if self.facing == 1 then 0 else math.pi, 0)
-		* CFrame.Angles(0, 0, self.pitch)
-	for _, piece in self.pieces do
-		piece.part.CFrame = root * piece.offset
-	end
-	self.jaw.CFrame = root * jawOffset(self.jawOpen)
-	self.key.CFrame = root * CFrame.new(-1.5, 4.4, 0) * CFrame.Angles(0, self.keyAngle, 0)
-end
-
+-- Keep the shark inside the ocean and under the surface.
 function ClockworkShark:clampToWater(point: Vector3, surfaceGap: number): Vector3
 	local stage = self.stage
-	local half = stage.width / 2 - 7
+	local halfX, halfZ = stage.width / 2 - 10, stage.depth / 2 - 10
 	return Vector3.new(
-		math.clamp(point.X, stage.origin.X - half, stage.origin.X + half),
+		math.clamp(point.X, stage.origin.X - halfX, stage.origin.X + halfX),
 		math.clamp(point.Y, stage.origin.Y + 3, stage.waterTop - surfaceGap),
-		math.clamp(point.Z, stage.origin.Z - 5, stage.origin.Z + 5)
+		math.clamp(point.Z, stage.origin.Z - halfZ, stage.origin.Z + halfZ)
 	)
+end
+
+function ClockworkShark:faceAlong(direction: Vector3)
+	if Vector3.new(direction.X, 0, direction.Z).Magnitude > 0.02 then
+		self.yaw = math.atan2(-direction.Z, direction.X)
+	end
 end
 
 function ClockworkShark:moveToward(goal: Vector3, speed: number, dt: number)
@@ -146,117 +231,113 @@ function ClockworkShark:moveToward(goal: Vector3, speed: number, dt: number)
 	end
 	local step = offset.Unit * math.min(offset.Magnitude, speed * dt)
 	self.position += step
-	if math.abs(step.X) > 0.02 then
-		self.facing = if step.X > 0 then 1 else -1
-	end
-	local targetPitch = math.clamp(math.atan2(step.Y, math.abs(step.X) + 0.01), -0.5, 0.5)
+	self:faceAlong(step)
+	local targetPitch = math.clamp(math.atan2(step.Y, Vector3.new(step.X, 0, step.Z).Magnitude + 0.01), -0.5, 0.5)
 	self.pitch += (targetPitch - self.pitch) * math.min(1, dt * 6)
 end
 
--- Players in this stage, with a filter. Returns the closest one to `from`.
-function ClockworkShark:closestPlayer(from: Vector3, filter: (BasePart) -> boolean)
-	local best, bestRoot, bestHumanoid, bestDistance = nil, nil, nil, math.huge
+local function isOnRaft(stage, root: BasePart): boolean
+	return root.Position.Y > stage.waterTop
+end
+
+-- The closest living player within the hunt radius, or nil.
+function ClockworkShark:findTarget(): (Player?, BasePart?)
+	local best, bestRoot, bestDistance = nil, nil, Config.SharkHuntRadius
 	for _, player in Players:GetPlayers() do
-		local humanoid = Util.aliveHumanoid(player)
 		local root = Util.rootPart(player)
-		if humanoid and root and self.stage.contains(root.Position) and filter(root) then
-			local distance = (root.Position - from).Magnitude
+		if root and Util.aliveHumanoid(player) and self.stage.contains(root.Position) then
+			local distance = Util.flatten(root.Position - self.position).Magnitude
 			if distance < bestDistance then
-				best, bestRoot, bestHumanoid, bestDistance = player, root, humanoid, distance
+				best, bestRoot, bestDistance = player, root, distance
 			end
 		end
 	end
-	return best, bestRoot, bestHumanoid, bestDistance
+	return best, bestRoot
 end
 
-function ClockworkShark:hurt(player: Player, humanoid: Humanoid, damage: number)
-	humanoid:TakeDamage(damage)
-	Score.breakCombo(player)
-	local root = Util.rootPart(player)
-	if root then
-		local away = root.Position.X - self.position.X
-		Remotes.fire(player, "Knock", { velocity = Vector3.new(if away >= 0 then 40 else -40, 45, 0) })
+function ClockworkShark:pop(player: Player)
+	local humanoid = Util.aliveHumanoid(player)
+	if not humanoid then
+		return
 	end
-	Util.playSound("Chomp", self.jaw)
+	humanoid.Health = 0
+	Score.breakCombo(player)
+	Util.playSound("Chomp", self.head)
+	self.jawOpen = 0
+	self.jawTarget = 0
 end
 
 function ClockworkShark:startLeap(target: BasePart)
 	local stage = self.stage
-	local direction = if target.Position.X >= self.position.X then 1 else -1
+	local across = Util.flatten(target.Position - self.position)
+	local direction = if across.Magnitude > 0.1 then across.Unit else Vector3.xAxis
 	self.leapStart = self.position
-	self.leapApex = Vector3.new(target.Position.X, target.Position.Y + 2, target.Position.Z)
-	self.leapEnd = self:clampToWater(Vector3.new(target.Position.X + direction * 12, stage.waterTop - 7, target.Position.Z), 2)
+	self.leapApex = target.Position + Vector3.new(0, 2, 0)
+	local landing = target.Position + direction * 12
+	self.leapEnd = self:clampToWater(Vector3.new(landing.X, stage.waterTop - 7, landing.Z), 2)
 	self.leapT = 0
 	self.leapHit = {}
-	self.jawTarget = 0.6
+	self.jawTarget = 0.7
 	self.state = "leap"
-	-- The tissue-paper water rips open as it breaks the surface.
 	Remotes.fireAll("Splash", { position = Vector3.new(self.position.X, stage.waterTop, self.position.Z) })
-	Util.playSound("Breach", self.pieces[1].part)
+	Util.playSound("Breach", self.head)
 end
 
 function ClockworkShark:update(dt: number, progress: number)
 	local stage = self.stage
-	self.keyAngle += dt * 5
+	local speedUp = 1 + progress * 0.6
+	self.gearAngle += dt * (if self.mood == "patrol" then 3 else 9)
+	self.swim += dt * (if self.mood == "patrol" then 3 else 8)
 	self.jawOpen += (self.jawTarget - self.jawOpen) * math.min(1, dt * 14)
+	self.leapCooldown -= dt
 
-	local inWater = function(root: BasePart)
-		return root.Position.Y < stage.waterTop - 1
-	end
-	local onCrate = function(root: BasePart)
-		return root.Position.Y > stage.waterTop
-	end
-
-	if self.state == "swim" then
-		self.leapTimer -= dt
-		local player, root, humanoid, distance = self:closestPlayer(self.position, inWater)
-		if player and root and humanoid then
-			self:moveToward(self:clampToWater(root.Position, 1.8), 12 + 8 * progress, dt)
-			self.jawTarget = if distance < 9 then 0.5 else 0
-			local now = os.clock()
-			if distance < BITE_RANGE and now - (self.lastBite[player] or 0) > BITE_COOLDOWN then
-				self.lastBite[player] = now
-				self.jawOpen = 0
-				self:hurt(player, humanoid, BITE_DAMAGE)
-			end
-		else
-			-- Cruise just under the surface so the fin shows.
-			self.jawTarget = 0
-			local goal = Vector3.new(stage.origin.X + self.patrolX, stage.waterTop - 2.4, stage.origin.Z)
-			self:moveToward(self:clampToWater(goal, 2.4), 10, dt)
-			if math.abs(self.position.X - goal.X) < 3 then
-				self.patrolX = math.random(-45, 45)
-			end
+	if self.state ~= "leap" then
+		-- Re-check who to chase five times a second.
+		self.targetCheck -= dt
+		if self.targetCheck <= 0 then
+			self.targetCheck = TARGET_CHECK_INTERVAL
+			local player, root = self:findTarget()
+			self.target = player
+			self.targetRoot = root
+		end
+		local player, root = self.target, self.targetRoot
+		if player and (not root or not root.Parent or not Util.aliveHumanoid(player)) then
+			player, root = nil, nil
+			self.target = nil
 		end
 
-		self:setMotor(if player then "hunt" else "patrol", dt)
-
-		-- Lock on to someone standing on a crate within 60 studs.
-		if self.leapTimer <= 0 then
-			local victim, victimRoot, _, victimDistance = self:closestPlayer(self.position, onCrate)
-			if victim and victimRoot and victimDistance <= 60 then
-				self.state = "stalk"
-				self.victim = victim
-				self.stalkTime = 0
-			else
-				self.leapTimer = 2
-			end
-		end
-	elseif self.state == "stalk" then
-		local root = self.victim and Util.rootPart(self.victim)
-		if not root or not Util.aliveHumanoid(self.victim) then
-			self.state = "swim"
-			self.leapTimer = 3
-		else
-			self.stalkTime += dt
+		if player and root then
 			self:setMotor("hunt", dt)
-			local below = self:clampToWater(Vector3.new(root.Position.X - self.facing * 6, stage.waterTop - 7, root.Position.Z), 2)
-			self:moveToward(below, 30, dt)
-			if (self.position - below).Magnitude < 1.5 or self.stalkTime > 1.6 then
-				self:startLeap(root)
+			if isOnRaft(stage, root) then
+				-- Get right underneath them, then breach.
+				local below = self:clampToWater(Vector3.new(root.Position.X, stage.waterTop - 7, root.Position.Z), 2)
+				self:moveToward(below, 20 * speedUp, dt)
+				self.jawTarget = 0
+				if Util.flatten(below - self.position).Magnitude < 3 and self.leapCooldown <= 0 then
+					self:startLeap(root)
+				end
+			else
+				-- Swimmer: chase them down and bite.
+				self:moveToward(self:clampToWater(root.Position, 1.5), 16 * speedUp, dt)
+				local distance = (root.Position - self.position).Magnitude
+				self.jawTarget = if distance < 10 then 0.6 else 0
+				if distance < BITE_RANGE + HEAD_LENGTH / 2 then
+					self:pop(player)
+				end
+			end
+		else
+			-- Patrol the loop of points.
+			self:setMotor("patrol", dt)
+			self.jawTarget = 0
+			local node = self.nodes[self.nodeIndex]
+			local goal = Vector3.new(node.X, stage.waterTop - PATROL_DEPTH, node.Z)
+			self:moveToward(goal, 10, dt)
+			if Util.flatten(goal - self.position).Magnitude < 4 then
+				self.nodeIndex = self.nodeIndex % #self.nodes + 1
 			end
 		end
-	elseif self.state == "leap" then
+	else
+		self:setMotor("leap", dt)
 		local before = self.position
 		self.leapT = math.min(1, self.leapT + dt / LEAP_TIME)
 		local t = self.leapT
@@ -264,47 +345,37 @@ function ClockworkShark:update(dt: number, progress: number)
 		local control = 2 * self.leapApex - 0.5 * (self.leapStart + self.leapEnd)
 		self.position = (1 - t) ^ 2 * self.leapStart + 2 * (1 - t) * t * control + t ^ 2 * self.leapEnd
 		local velocity = self.position - before
-		if math.abs(velocity.X) > 0.01 then
-			self.facing = if velocity.X > 0 then 1 else -1
-		end
-		self.pitch = math.clamp(math.atan2(velocity.Y, math.abs(velocity.X) + 0.01), -1.1, 1.1)
+		self:faceAlong(velocity)
+		self.pitch = math.clamp(math.atan2(velocity.Y, Vector3.new(velocity.X, 0, velocity.Z).Magnitude + 0.01), -1.1, 1.1)
 
 		if t >= 0.5 and self.jawTarget > 0 then
-			self.jawTarget = 0 -- SNAP
-			Util.playSound("Chomp", self.jaw)
+			self.jawTarget = 0 -- CLACK
+			Util.playSound("Chomp", self.head)
 		end
 
-		self:setMotor("leap", dt)
-
 		for _, player in Players:GetPlayers() do
-			local humanoid = Util.aliveHumanoid(player)
 			local root = Util.rootPart(player)
-			if humanoid and root and not self.leapHit[player] and (root.Position - self.position).Magnitude < LEAP_HIT_RANGE then
+			if root and not self.leapHit[player] and (root.Position - self.position).Magnitude < LEAP_HIT_RANGE then
 				self.leapHit[player] = true
-				self:hurt(player, humanoid, LEAP_DAMAGE)
+				self:pop(player)
 			end
 		end
 
-		-- Crashing through a crate snaps it into pieces.
-		for _, crate in stage.crates do
-			if not crate.broken and not crate.busy then
-				local localPoint = crate.box.CFrame:PointToObjectSpace(self.position)
-				local half = crate.box.Size / 2 + Vector3.new(2, 2, 2)
-				if math.abs(localPoint.X) < half.X and math.abs(localPoint.Y) < half.Y and math.abs(localPoint.Z) < half.Z then
-					stage.smashCrate(crate)
-				end
+		-- Any raft in the way snaps.
+		for _, raft in stage.raftList do
+			if not raft.broken and raft.core.Parent and (raft.core.Position - self.position).Magnitude < 7.5 then
+				stage.smashRaft(raft)
 			end
 		end
 
 		if before.Y >= stage.waterTop and self.position.Y < stage.waterTop then
 			Remotes.fireAll("Splash", { position = Vector3.new(self.position.X, stage.waterTop, self.position.Z) })
-			Util.playSound("Splash", self.pieces[1].part)
-			self.jawTarget = 0
+			Util.playSound("Splash", self.head)
 		end
 
 		if t >= 1 then
-			self.state = "swim"
-			self.leapTimer = 7 - 4 * progress + math.random() * 2
+			self.state = "hunt"
+			self.leapCooldown = LEAP_COOLDOWN
 		end
 	end
 

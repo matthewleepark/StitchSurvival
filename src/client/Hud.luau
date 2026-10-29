@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -59,7 +60,7 @@ end
 local function text(props, parent: Instance): TextLabel
 	local label = new("TextLabel", props, parent)
 	label.BackgroundTransparency = 1
-	label.Font = FONT
+	label.Font = props.Font or FONT
 	label.TextColor3 = props.TextColor3 or Colors.Ink
 	return label
 end
@@ -113,7 +114,8 @@ local function buildScore()
 	local stripe = new("Frame", { Size = UDim2.new(0, 16, 1, 0), BorderSizePixel = 0 }, card)
 	round(stripe, 12)
 	text({ Position = UDim2.fromOffset(26, 4), Size = UDim2.fromOffset(120, 20), TextSize = 16, Text = "SCORE", TextXAlignment = Enum.TextXAlignment.Left }, card)
-	local scoreLabel = text({ Position = UDim2.fromOffset(26, 22), Size = UDim2.fromOffset(120, 44), TextSize = 38, Text = "0", TextXAlignment = Enum.TextXAlignment.Left }, card)
+	-- Score written in messy crayon.
+	local scoreLabel = text({ Position = UDim2.fromOffset(26, 22), Size = UDim2.fromOffset(120, 44), TextSize = 38, Text = "0", Font = Enum.Font.PermanentMarker, TextXAlignment = Enum.TextXAlignment.Left }, card)
 
 	local badge = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -174,6 +176,54 @@ local function buildScore()
 end
 
 -- Oxygen bar ------------------------------------------------------------------------------
+
+-- Health: a stitched red ribbon with a zipper. As you take damage the zipper slides back and
+-- the ribbon "unzips", showing the dark lining underneath.
+local function buildHealth()
+	local frame = paper({ Position = UDim2.fromOffset(16, 96), Size = UDim2.fromOffset(200, 34) })
+	local lining = new("Frame", { Position = UDim2.fromOffset(8, 7), Size = UDim2.new(1, -16, 1, -14), BackgroundColor3 = Color3.fromRGB(70, 40, 40), BorderSizePixel = 0 }, frame)
+	round(lining, 6)
+	local ribbon = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Colors.Felt, BorderSizePixel = 0, ClipsDescendants = true }, lining)
+	round(ribbon, 6)
+	-- Zipper teeth down the middle and white stitches along the edges.
+	for i = 0, 29 do
+		new("Frame", { Position = UDim2.new(i / 30, 2, 0.5, if i % 2 == 0 then -3 else 0), Size = UDim2.fromOffset(3, 3), BackgroundColor3 = Colors.Gold, BorderSizePixel = 0 }, ribbon)
+		if i % 2 == 0 then
+			new("Frame", { Position = UDim2.new(i / 30, 2, 0, 2), Size = UDim2.fromOffset(4, 1), BackgroundColor3 = Colors.Paper, BorderSizePixel = 0 }, ribbon)
+			new("Frame", { Position = UDim2.new(i / 30, 2, 1, -3), Size = UDim2.fromOffset(4, 1), BackgroundColor3 = Colors.Paper, BorderSizePixel = 0 }, ribbon)
+		end
+	end
+	local pull = new("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(1, 0.5), Size = UDim2.fromOffset(10, 22), BackgroundColor3 = Colors.Gold }, lining)
+	round(pull, 3)
+	outline(pull, 1.5)
+
+	local connection: RBXScriptConnection? = nil
+	local function watch(character: Model)
+		if connection then
+			connection:Disconnect()
+		end
+		local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+		if not humanoid then
+			return
+		end
+		local function update()
+			local ratio = math.clamp(humanoid.Health / math.max(humanoid.MaxHealth, 1), 0, 1)
+			tween(ribbon, 0.25, { Size = UDim2.fromScale(ratio, 1) })
+			tween(pull, 0.25, { Position = UDim2.fromScale(ratio, 0.5) })
+		end
+		connection = humanoid.HealthChanged:Connect(update)
+		update()
+	end
+	player.CharacterAdded:Connect(watch)
+	if player.Character then
+		task.spawn(watch, player.Character)
+	end
+
+	-- Our ribbon replaces Roblox's own health bar.
+	pcall(function()
+		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
+	end)
+end
 
 local function buildOxygen()
 	local frame = paper({
@@ -455,6 +505,7 @@ function Hud.start()
 
 	buildStatus()
 	buildScore()
+	buildHealth()
 	buildOxygen()
 	buildGear()
 	buildBigText()

@@ -1,7 +1,6 @@
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local SoundBank = require(ReplicatedStorage.Shared.SoundBank)
 
 local Util = {}
@@ -90,8 +89,14 @@ function Util.weightedPick(list)
 	return list[#list]
 end
 
-function Util.randomLayer(): number
-	return Config.Layers[math.random(1, #Config.Layers)]
+-- Drops the up/down part of a direction (for knockbacks along the ground).
+function Util.flatten(direction: Vector3): Vector3
+	return Vector3.new(direction.X, 0, direction.Z)
+end
+
+-- A random point on a rectangle around `center`, `halfX` by `halfZ` studs each way.
+function Util.randomAround(center: Vector3, halfX: number, halfZ: number): Vector3
+	return center + Vector3.new((math.random() * 2 - 1) * halfX, 0, (math.random() * 2 - 1) * halfZ)
 end
 
 return Util

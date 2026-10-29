@@ -1,17 +1,19 @@
--- Bomb Hotel: a dollhouse-style cutaway of a hotel. Floors are polystyrene foam that bombs
--- blow holes in, so players drop lower and lower as the round goes on.
+-- Bomb Hotel: a five-floor hotel you can walk all the way around in 3D.
 --
--- Layout (side view, y is up):
---   y 76+   HOTEL KABOOM marquee + egg timer, bomb chutes hang below it
---   y 64    foam floor 4   (hole on the right) <- players start here
---   y 48    foam floor 3   (hole on the left)
---   y 32    foam floor 2   (hole on the right) <- grandfather clock on this floor's wall
---   y 16    foam floor 1   (hole on the left)
---   y 0     solid wood lobby floor
--- Foam steps under each hole let players climb back up.
+-- Layout (all numbers in studs, measured from the center of the lobby floor):
+--   * The building is 96 wide (X) by 96 deep (Z). Four cardboard outer walls, a cardboard roof.
+--   * Floor 1 (the lobby) is solid wood with a checkered tile pattern and a reception desk.
+--   * Floors 2-5 are made of 8x8 foam blocks, 16 studs apart. Each has a 32x32 hole in the
+--     middle (the atrium) with low railings around it, so you can look down into the lobby.
+--   * Wooden ramps connect each floor to the next. Odd ramps run along the back wall, even ramps
+--     along the front wall, and the floor above each ramp has a gap so you can walk up through it.
+--   * Six thick foam pillars wrapped in brown paper hold the floors up.
+--   * Every wall has wallpaper, windows with curtains, pictures, lamps and room numbers.
+--     A grandfather clock tocks on the third floor; a HOTEL KABOOM sign with an egg timer
+--     hangs in the middle of the atrium under the roof.
 --
 -- Round timeline: a few calm seconds (hum + clock), then the egg timer buzzes and spins,
--- then bombs start falling from the chutes and a planted time bomb appears every 15 seconds.
+-- then a bomb is dropped somewhere in the hotel every 15 seconds.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -24,22 +26,10 @@ local Bombs = require(script.Parent.Bombs)
 local Colors = Config.Colors
 local M = Craft.Material
 
-local function findDef()
-	for _, def in Config.Levels do
-		if def.name == "BombHotel" then
-			return def
-		end
-	end
-	error("BombHotel is missing from Config.Levels")
-end
-
-local FLOOR_HEIGHT = 16
-local FOAM_FLOORS = findDef().floors - 1
-local BLOCK = 4
-local SLAB_DEPTH = 15 -- leaves a small gap in front of the back wall for the wallpaper
-local SLAB_Z = 0.5
-local CHUTE_XS = { -40, -24, -8, 8, 24, 40 }
-local CHUTE_BOTTOM = (FOAM_FLOORS + 1) * FLOOR_HEIGHT - 4
+local BLOCK = 8
+local ATRIUM_HALF = 16
+local RAMP_RUN = 32 -- how far a ramp travels sideways while climbing one floor
+local RAILING_HEIGHT = 1.6
 
 local BombHotel = {}
 
@@ -63,10 +53,11 @@ local function buildGrandfatherClock(parent: Instance, base: Vector3)
 		Craft.tag(part, "Pendulum")
 	end
 
+	Craft.tag(face, "Occluded")
 	Util.loopSound("ClockTock", face)
 end
 
--- Kitchen egg timer stuck to the marquee. The hand spins while the client sees Speed > 0.
+-- Kitchen egg timer. The hand spins while its "Speed" attribute is above 0.
 local function buildEggTimer(parent: Instance, center: Vector3)
 	Craft.disc(parent, center, 4.4, Colors.Felt, M.Plastic, Craft.DECOR)
 	Craft.disc(parent, center + Vector3.new(0, 0, 0.1), 3.4, Colors.Paper, M.Plastic, Craft.DECOR)
@@ -78,145 +69,201 @@ local function buildEggTimer(parent: Instance, center: Vector3)
 	return hand
 end
 
+-- Decorations for one wall, built as if it were the back wall (facing +Z), then rotated
+-- into place around the middle of the hotel. Returns the model.
+local function decorateWall(parent: Instance, O: Vector3, W: number, D: number, floors: number, floorHeight: number, rotation: number, wallIndex: number)
+	local wall = Instance.new("Model")
+	wall.Name = "WallDecor"
+	local wallZ = -D / 2
+
+	local function at(x: number, y: number, z: number): Vector3
+		return O + Vector3.new(x, y, z)
+	end
+
+	for floor = 1, floors do
+		local base, stripe = Config.Wallpapers[floor][1], Config.Wallpapers[floor][2]
+		local bottom = (floor - 1) * floorHeight
+		Craft.panel(wall, at(0, bottom + floorHeight / 2, wallZ + 0.1), W, floorHeight, base, M.Felt, { thickness = 0.2 })
+		for x = -W / 2 + 3, W / 2 - 3, 6 do
+			Craft.block(wall, CFrame.new(at(x, bottom + floorHeight / 2, wallZ + 0.25)), Vector3.new(1.4, floorHeight, 0.1), stripe, M.Felt, Craft.DECOR)
+		end
+		Craft.block(wall, CFrame.new(at(0, bottom + 0.6, wallZ + 0.4)), Vector3.new(W, 1.2, 0.3), Colors.WoodDark, M.Wood, Craft.DECOR)
+
+		for room = 1, 3 do
+			local x = (room - 2) * 32
+			Craft.window(wall, at(x, bottom + 7.5, wallZ + 0.6), 7, 5.5, Colors.Sky, Colors.Felt)
+			Craft.picture(wall, at(x + 11, bottom + 8, wallZ + 0.5), 3.5, 2.6, Config.Wallpapers[(floor % #Config.Wallpapers) + 1][1])
+			Craft.lamp(wall, at(x - 9, bottom + 7, wallZ + 0.5))
+			local number = floor * 100 + wallIndex * 3 + room
+			Craft.block(wall, CFrame.new(at(x, bottom + 12.4, wallZ + 0.5)), Vector3.new(3.2, 1.4, 0.2), Colors.Gold, M.Metal, Craft.DECOR)
+			Craft.label(wall, at(x, bottom + 12.4, wallZ + 0.65), 2.8, 1.2, tostring(number), Colors.Ink)
+		end
+	end
+
+	-- The grandfather clock stands against the back wall on the third floor
+	-- (on the right side, away from the ramp that runs along the left half of this wall).
+	if wallIndex == 0 then
+		buildGrandfatherClock(wall, at(20, 2 * floorHeight, wallZ + 1.2))
+	end
+
+	wall.Parent = parent
+	local turn = CFrame.new(O) * CFrame.Angles(0, rotation, 0) * CFrame.new(-O)
+	wall:PivotTo(turn * wall:GetPivot())
+	return wall
+end
+
+-- A wooden plank ramp climbing from `from` to `to` (both points on the walking surface).
+local function buildRamp(parent: Instance, from: Vector3, to: Vector3, width: number)
+	local middle = (from + to) / 2
+	local length = (to - from).Magnitude
+	local plank = Craft.block(parent, CFrame.lookAt(middle, to) * CFrame.new(0, -0.5, 0), Vector3.new(width, 1, length + 1), Colors.Wood, M.Wood)
+	plank.Name = "Ramp"
+	plank:SetAttribute("Breakable", true)
+	-- Darker slats across it so it reads as planks.
+	for i = 1, math.floor(length / 3) do
+		local point = from:Lerp(to, i / math.floor(length / 3 + 1))
+		Craft.block(parent, CFrame.lookAt(point, to) * CFrame.new(0, 0.02, 0), Vector3.new(width, 0.05, 0.3), Colors.WoodDark, M.Wood, Craft.DECOR)
+	end
+	return plank
+end
+
 function BombHotel.build(def)
 	local O = def.origin
-	local W = def.width
-	local depth = Config.StageDepth
-	local wallZ = -depth / 2
+	local W, D = def.width, def.depth
+	local floors = def.floors
+	local H = def.floorHeight
+	local roofY = floors * H
 
 	local model = Instance.new("Model")
 	model.Name = "BombHotel"
 	local decor = Instance.new("Folder")
 	decor.Name = "Decor"
 	decor.Parent = model
-	local foam = Instance.new("Folder")
-	foam.Name = "Foam"
-	foam.Parent = model
+	-- Everything bombs can blow apart lives in here.
+	local breakables = Instance.new("Folder")
+	breakables.Name = "Breakables"
+	breakables.Parent = model
 
 	local function at(x: number, y: number, z: number?): Vector3
 		return O + Vector3.new(x, y, z or 0)
 	end
 
 	-- Lobby floor: solid wood with a checkered tile pattern.
-	Craft.block(model, CFrame.new(at(0, -2)), Vector3.new(W + 8, 4, depth + 8), Colors.WoodDark, M.Wood)
+	Craft.block(model, CFrame.new(at(0, -2)), Vector3.new(W + 8, 4, D + 8), Colors.WoodDark, M.Wood)
 	for i = 0, W / BLOCK - 1 do
-		for row = 0, 1 do
-			local color = if (i + row) % 2 == 0 then Colors.Paper else Color3.fromRGB(70, 60, 70)
-			local x = -W / 2 + BLOCK / 2 + i * BLOCK
-			Craft.block(decor, CFrame.new(at(x, 0.03, -4 + row * 8)), Vector3.new(BLOCK, 0.06, 8), color, M.Plastic, Craft.DECOR)
+		for j = 0, D / BLOCK - 1 do
+			local color = if (i + j) % 2 == 0 then Colors.Paper else Color3.fromRGB(70, 60, 70)
+			Craft.block(decor, CFrame.new(at(-W / 2 + BLOCK / 2 + i * BLOCK, 0.03, -D / 2 + BLOCK / 2 + j * BLOCK)), Vector3.new(BLOCK, 0.06, BLOCK), color, M.Plastic, Craft.DECOR)
 		end
 	end
 
-	-- Back wall, then one wallpaper band per floor with rooms on it.
-	local topY = (FOAM_FLOORS + 1) * FLOOR_HEIGHT
-	Craft.block(model, CFrame.new(at(0, (topY + 30) / 2, wallZ - 1)), Vector3.new(W + 8, topY + 30, 2), Colors.CardboardDark)
+	-- Outer walls and roof (these never break, so the hotel stays a closed box).
+	local wallHeight = roofY + 2
+	for _, side in { -1, 1 } do
+		Craft.block(model, CFrame.new(at(side * (W / 2 + 1), wallHeight / 2, 0)), Vector3.new(2, wallHeight, D + 4), Colors.CardboardDark)
+		Craft.block(model, CFrame.new(at(0, wallHeight / 2, side * (D / 2 + 1))), Vector3.new(W + 4, wallHeight, 2), Colors.CardboardDark)
+	end
+	Craft.block(model, CFrame.new(at(0, roofY + 1, 0)), Vector3.new(W + 4, 2, D + 4), Colors.Cardboard)
+	for wallIndex, rotation in { 0, math.pi / 2, math.pi, -math.pi / 2 } do
+		decorateWall(decor, O, W, D, floors, H, rotation, wallIndex - 1)
+	end
 
-	for floor = 1, FOAM_FLOORS + 1 do
-		local base, stripe = Config.Wallpapers[floor][1], Config.Wallpapers[floor][2]
-		local bottom = (floor - 1) * FLOOR_HEIGHT
-		Craft.panel(decor, at(0, bottom + FLOOR_HEIGHT / 2, wallZ + 0.1), W, FLOOR_HEIGHT, base, M.Felt, { thickness = 0.2 })
-		for x = -W / 2 + 2, W / 2 - 2, 4 do
-			Craft.block(decor, CFrame.new(at(x, bottom + FLOOR_HEIGHT / 2, wallZ + 0.25)), Vector3.new(1.2, FLOOR_HEIGHT, 0.1), stripe, M.Felt, Craft.DECOR)
+	-- Reception desk against the back wall.
+	local deskZ = -D / 2 + 6
+	Craft.block(model, CFrame.new(at(0, 2, deskZ)), Vector3.new(12, 4, 3), Colors.Wood, M.Wood)
+	Craft.block(decor, CFrame.new(at(0, 4.15, deskZ)), Vector3.new(12.4, 0.3, 3.4), Colors.Felt, M.Felt, Craft.DECOR)
+	Craft.label(decor, at(0, 2, deskZ + 1.6), 9, 1.6, "RECEPTION", Colors.Paper)
+
+	-- Ramp lanes: odd ramps along the back wall, even ramps along the front wall.
+	local laneZ = { -D / 2 + BLOCK / 2, D / 2 - BLOCK / 2 }
+	local function rampFor(level: number)
+		local lane = if level % 2 == 1 then 1 else 2
+		local direction = if lane == 1 then 1 else -1 -- back ramps climb toward +X, front ramps toward -X
+		local startX = -direction * (W / 2 - BLOCK)
+		return laneZ[lane], startX, startX + direction * RAMP_RUN
+	end
+
+	-- Foam floors 2-5, each with the atrium hole and a gap above the ramp coming up to it.
+	for level = 1, floors - 1 do
+		local top = level * H
+		local rampZ, rampStartX, rampEndX = rampFor(level)
+		local gapMin, gapMax = math.min(rampStartX, rampEndX), math.max(rampStartX, rampEndX)
+
+		for i = 0, W / BLOCK - 1 do
+			for j = 0, D / BLOCK - 1 do
+				local x = -W / 2 + BLOCK / 2 + i * BLOCK
+				local z = -D / 2 + BLOCK / 2 + j * BLOCK
+				local inAtrium = math.abs(x) < ATRIUM_HALF and math.abs(z) < ATRIUM_HALF
+				local inRampGap = z == rampZ and x > gapMin - BLOCK / 2 and x < gapMax
+				if not inAtrium and not inRampGap then
+					Craft.foam(breakables, CFrame.new(at(x, top - 1, z)), Vector3.new(BLOCK, 2, BLOCK), (i + j) % 2 == 0)
+				end
+			end
 		end
-		-- Skirting board.
-		Craft.block(decor, CFrame.new(at(0, bottom + 0.6, wallZ + 0.4)), Vector3.new(W, 1.2, 0.3), Colors.WoodDark, M.Wood, Craft.DECOR)
 
-		for room = 1, 3 do
-			local x = (room - 2) * 32
-			Craft.window(decor, at(x, bottom + 7.5, wallZ + 0.6), 7, 5.5, Colors.Sky, Colors.Felt)
-			Craft.picture(decor, at(x + 11, bottom + 8, wallZ + 0.5), 3.5, 2.6, Config.Wallpapers[(floor % #Config.Wallpapers) + 1][1])
-			Craft.lamp(decor, at(x - 9, bottom + 7, wallZ + 0.5))
+		-- Low wooden railings around the atrium.
+		for _, side in { -1, 1 } do
+			for _, size in { Vector3.new(ATRIUM_HALF * 2, RAILING_HEIGHT, 0.4), Vector3.new(0.4, RAILING_HEIGHT, ATRIUM_HALF * 2) } do
+				local offset = if size.X > 1 then Vector3.new(0, 0, side * ATRIUM_HALF) else Vector3.new(side * ATRIUM_HALF, 0, 0)
+				local rail = Craft.block(breakables, CFrame.new(at(0, top + RAILING_HEIGHT / 2, 0) + offset), size, Colors.WoodDark, M.Wood)
+				rail.Name = "Railing"
+				rail:SetAttribute("Breakable", true)
+			end
+		end
 
-			-- Gold room number plate above the window.
-			Craft.block(decor, CFrame.new(at(x, bottom + 12.4, wallZ + 0.5)), Vector3.new(3.2, 1.4, 0.2), Colors.Gold, M.Metal, Craft.DECOR)
-			Craft.label(decor, at(x, bottom + 12.4, wallZ + 0.65), 2.8, 1.2, tostring(floor * 100 + room), Colors.Ink)
+		-- The ramp from the floor below up to this one.
+		local ramp = buildRamp(breakables, at(rampStartX, top - H, rampZ), at(rampEndX, top, rampZ), BLOCK - 0.4)
+		ramp.Parent = breakables
+	end
+
+	-- Foam pillars wrapped in brown packing paper, one segment per floor.
+	for _, spot in { Vector2.new(-20, -20), Vector2.new(20, -20), Vector2.new(-20, 20), Vector2.new(20, 20), Vector2.new(-40, 0), Vector2.new(40, 0) } do
+		for level = 0, floors - 1 do
+			local bottom = level * H
+			local segmentHeight = H - 2
+			local pillar = Craft.cylinder(breakables, at(spot.X, bottom + segmentHeight / 2, spot.Y), segmentHeight, 5, "Y", Color3.fromRGB(178, 140, 96), M.Cardboard)
+			pillar.Name = "Pillar"
+			pillar:SetAttribute("Breakable", true)
 		end
 	end
 
-	-- Ground floor extras: reception desk and a welcome sign.
-	Craft.block(model, CFrame.new(at(0, 2, -4.5)), Vector3.new(10, 4, 3), Colors.Wood, M.Wood)
-	Craft.block(decor, CFrame.new(at(0, 4.15, -4.5)), Vector3.new(10.4, 0.3, 3.4), Colors.Felt, M.Felt, Craft.DECOR)
-	Craft.label(decor, at(0, 2, -2.9), 8, 1.6, "RECEPTION", Colors.Paper)
+	-- The marquee hanging in the middle of the atrium, visible from every floor.
+	local signY = roofY - 7
+	for _, turn in { 0, math.pi } do
+		local face = Instance.new("Model")
+		face.Name = "Marquee"
+		Craft.sign(face, at(0, signY, 0.6), 30, 7, "HOTEL KABOOM", { bulbs = true, textColor = Colors.Felt })
+		face.Parent = decor
+		face:PivotTo(CFrame.new(at(0, signY, 0)) * CFrame.Angles(0, turn, 0) * CFrame.new(-at(0, signY, 0)) * face:GetPivot())
+	end
+	local timerHand = buildEggTimer(decor, at(-19, signY, 1.2))
+	Craft.bunting(decor, at(-ATRIUM_HALF, signY + 5, 0), at(ATRIUM_HALF, signY + 5, 0))
 
-	-- The grandfather clock ticks away on the third floor.
-	buildGrandfatherClock(decor, at(-15, 2 * FLOOR_HEIGHT, wallZ + 1.2))
-
-	-- A low, cozy building hum that fills the whole hotel.
-	local humSpot = Craft.block(decor, CFrame.new(at(0, (FOAM_FLOORS + 1) * FLOOR_HEIGHT / 2, 0)), Vector3.one, Color3.new(), nil, Craft.DECOR)
+	-- A low, cozy building hum that fills the hotel.
+	local humSpot = Craft.block(decor, CFrame.new(at(0, roofY / 2, 0)), Vector3.one, Color3.new(), nil, Craft.DECOR)
 	humSpot.Transparency = 1
 	Util.loopSound("HotelHum", humSpot)
 
-	-- Foam floors with a hole on alternating sides, plus foam steps leading up to each hole.
-	for level = 1, FOAM_FLOORS do
-		local top = level * FLOOR_HEIGHT
-		local side = if level % 2 == 1 then -1 else 1
-
-		for j = 0, W / BLOCK - 1 do
-			local x = -W / 2 + BLOCK / 2 + j * BLOCK
-			local inHole = side * x >= 30
-			if not inHole then
-				Craft.foam(foam, CFrame.new(at(x, top - 1, SLAB_Z)), Vector3.new(BLOCK, 2, SLAB_DEPTH), j % 2 == 0)
-			end
-		end
-
-		local below = top - FLOOR_HEIGHT
-		for step = 1, 3 do
-			local x = side * (44 - 6 * (step - 1))
-			Craft.foam(foam, CFrame.new(at(x, below + 4 * step - 1, SLAB_Z)), Vector3.new(BLOCK, 2, SLAB_DEPTH), step % 2 == 0)
-		end
-
-		-- A couple of foam crates on the lower floors to hide behind or climb.
-		-- (The top floor stays clear because that's where players spawn.)
-		if level < FOAM_FLOORS then
-			for _ = 1, 2 do
-				local x = math.random(-6, 6) * 3
-				Craft.foam(foam, CFrame.new(at(x, top + 2, Util.randomLayer())), Vector3.new(4, 4, 4), true)
-			end
-		end
-	end
-
-	-- Roof: a beam holding the bomb chutes, and the marquee above it.
-	Craft.block(model, CFrame.new(at(0, CHUTE_BOTTOM + 9, -2)), Vector3.new(W + 8, 2, 6), Colors.WoodDark, M.Wood)
-	local chutes = {}
-	for _, x in CHUTE_XS do
-		Craft.cylinder(decor, at(x, CHUTE_BOTTOM + 4, 0), 8, 4, "Y", Colors.Cardboard, M.Cardboard, Craft.DECOR)
-		Craft.cylinder(decor, at(x, CHUTE_BOTTOM + 0.3, 0), 0.6, 4.8, "Y", Colors.Felt, M.Felt, Craft.DECOR)
-		table.insert(chutes, at(x, CHUTE_BOTTOM - 2))
-	end
-	Craft.sign(decor, at(0, CHUTE_BOTTOM + 16, wallZ + 1), 46, 9, "HOTEL KABOOM", { bulbs = true, textColor = Colors.Felt })
-	Craft.bunting(decor, at(-W / 2, CHUTE_BOTTOM + 10.5, wallZ + 2), at(W / 2, CHUTE_BOTTOM + 10.5, wallZ + 2))
-	Craft.sticker(decor, at(-36, CHUTE_BOTTOM + 15, wallZ + 1), 5, Colors.Warning, "BOOM!")
-	local timerCenter = at(-28.5, CHUTE_BOTTOM + 16, wallZ + 1.2)
-	local timerHand = buildEggTimer(decor, timerCenter)
-	Craft.sticker(decor, at(36, CHUTE_BOTTOM + 15, wallZ + 1), 5, Color3.fromRGB(90, 160, 220), "POW!")
-
-	-- Brick-ish cardboard columns on the sides.
-	for _, side in { -1, 1 } do
-		Craft.block(model, CFrame.new(at(side * (W / 2 + 2), (topY + 30) / 2, 0)), Vector3.new(4, topY + 30, depth + 8), Colors.CardboardDark)
-		-- Mortar lines on the camera-facing side so the columns read as bricks.
-		local front = depth / 2 + 4.05
-		for y = 4, topY + 26, 4 do
-			Craft.block(decor, CFrame.new(at(side * (W / 2 + 2), y, front)), Vector3.new(4, 0.25, 0.1), Colors.Cardboard, M.Plastic, Craft.DECOR)
-			local jointX = side * (W / 2 + 2) + (if (y / 4) % 2 == 0 then -1 else 1)
-			Craft.block(decor, CFrame.new(at(jointX, y + 2, front)), Vector3.new(0.25, 4, 0.1), Colors.Cardboard, M.Plastic, Craft.DECOR)
-		end
-	end
-
-	Craft.boundaries(model, O, W, topY + 20)
+	Craft.boundaries(model, O, W, roofY + 10, D)
 
 	model.Parent = workspace
 
+	-- Everyone starts on the top floor, around the atrium.
+	local topY = (floors - 1) * H + 3
 	local spawns = {}
-	for i, x in { -12, -4, 4, 12, -20, 20 } do
-		table.insert(spawns, CFrame.new(at(x, FOAM_FLOORS * FLOOR_HEIGHT + 3, Config.Layers[(i % 3) + 1])))
+	for _, spot in { Vector2.new(-28, -28), Vector2.new(28, -28), Vector2.new(-28, 28), Vector2.new(28, 28), Vector2.new(0, -30), Vector2.new(0, 30) } do
+		table.insert(spawns, CFrame.new(at(spot.X, topY, spot.Y)))
 	end
 
 	return {
 		model = model,
-		foam = foam,
+		breakables = breakables,
 		origin = O,
 		width = W,
-		chutes = chutes,
+		depth = D,
+		floors = floors,
+		floorHeight = H,
+		roofY = roofY,
 		spawns = spawns,
 		killY = O.Y - 20,
 		timerHand = timerHand,
@@ -224,39 +271,34 @@ function BombHotel.build(def)
 	}
 end
 
--- A random spot on top of an intact foam floor block, on a random layer.
-local function plantSpot(stage): Vector3?
-	local candidates = {}
-	for _, block in stage.foam:GetChildren() do
-		if block:IsA("BasePart") and block.Anchored and block:GetAttribute("Breakable") and block.Size.Z == SLAB_DEPTH then
-			table.insert(candidates, block)
-		end
-	end
-	if #candidates == 0 then
-		return nil
-	end
-	local block = candidates[math.random(1, #candidates)]
-	local top = block.Position.Y + block.Size.Y / 2
-	return Vector3.new(block.Position.X, top + 1.2, stage.origin.Z + Util.randomLayer())
-end
-
-local function plantBombs(stage, ctx)
-	while ctx.isActive() do
-		local spot = plantSpot(stage)
-		if spot then
-			task.spawn(Bombs.plant, stage, spot)
-		end
-		task.wait(Config.PlantedBombInterval)
-	end
-end
-
+-- Score bubbles float above random intact floor blocks (or the lobby floor).
 local function spawnBubbles(stage, ctx)
 	while ctx.isActive() do
-		local floor = math.random(0, FOAM_FLOORS)
-		local x = math.random(-40, 40)
-		local position = stage.origin + Vector3.new(x, floor * FLOOR_HEIGHT + 3, Util.randomLayer())
+		local blocks = {}
+		for _, block in stage.breakables:GetChildren() do
+			if block.Name == "Foam" and block:IsA("BasePart") and block.Anchored then
+				table.insert(blocks, block)
+			end
+		end
+		local position
+		if #blocks > 0 and math.random() < 0.8 then
+			local block = blocks[math.random(1, #blocks)]
+			position = block.Position + Vector3.new(0, 4, 0)
+		else
+			position = Util.randomAround(stage.origin, stage.width / 2 - 6, stage.depth / 2 - 6) + Vector3.new(0, 3, 0)
+		end
 		Score.spawnBubble(stage.model, position)
 		task.wait(2.2)
+	end
+end
+
+-- Every 15 seconds, drop a bomb at a random spot anywhere inside the hotel.
+local function dropBombs(stage, ctx)
+	while ctx.isActive() do
+		local height = math.random(2, stage.roofY - 6)
+		local spot = Util.randomAround(stage.origin, stage.width / 2 - 6, stage.depth / 2 - 6) + Vector3.new(0, height, 0)
+		task.spawn(Bombs.plant, stage, spot)
+		task.wait(Config.PlantedBombInterval)
 	end
 end
 
@@ -280,19 +322,7 @@ function BombHotel.run(stage, ctx)
 		spring:Stop()
 	end
 
-	task.spawn(plantBombs, stage, ctx)
-
-	while ctx.isActive() do
-		local progress = ctx.progress()
-		local count = 1 + math.floor(progress * 3)
-		for _ = 1, count do
-			local chute = stage.chutes[math.random(1, #stage.chutes)]
-			local kind = if progress > 0.3 and math.random() < 0.3 then "Impact" else "Fuse"
-			Bombs.drop(stage, chute + Vector3.new(math.random(-2, 2), 0, Util.randomLayer()), kind)
-			task.wait(0.15)
-		end
-		task.wait(2.4 - 1.6 * progress)
-	end
+	dropBombs(stage, ctx)
 end
 
 -- Round over: everything stops exactly where it is.
@@ -300,6 +330,8 @@ function BombHotel.freeze(stage)
 	stage.frozen = true
 	for _, part in stage.model:GetDescendants() do
 		if part:IsA("BasePart") and not part.Anchored then
+			part.AssemblyLinearVelocity = Vector3.zero
+			part.AssemblyAngularVelocity = Vector3.zero
 			part.Anchored = true
 		end
 	end

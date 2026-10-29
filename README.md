@@ -1,24 +1,28 @@
 # Stitch Survival
 
-A handmade-scrapbook survival game for Roblox, inspired by LittleBigPlanet's survival levels.
-Knitted dolls hop between three depth layers in side-on dioramas made of cardboard, felt and foam.
+A handmade-scrapbook survival game for Roblox, inspired by LittleBigPlanet's survival levels,
+rebuilt in full 3D with the normal Roblox third-person camera. Players are little knitted dolls
+(about 3 studs tall) in a floaty, low-gravity world of cardboard, felt and foam.
 
 ## Levels
 
-- **Bomb Hotel**: a dollhouse cutaway of a hotel. Bombs drop from chutes in the roof and blow
-  holes in the foam floors. Orange bombs explode on impact. Grab score bubbles, don't get popped.
-- **Shark Survival**: hop between floating cardboard crates while a clockwork shark hunts you.
-  Orange-taped crates sink when you stand on them. Dive to grab bonus bubbles, but watch your air.
+- **Bomb Hotel**: a 96 x 96 stud, five-floor hotel with an open atrium, ramps and foam pillars.
+  Every 15 seconds a ticking bomb drops somewhere inside. When it goes off, everything within
+  25 studs rips loose and flies outward, falling blocks squash anyone underneath, and fire spreads.
+- **Shark Survival**: a 300 x 300 stud tissue-paper ocean with floating foam rafts that tip under
+  your weight. A clockwork shark patrols, hunts anyone within 45 studs, smashes rafts and pops
+  whoever it catches. Underwater you use up air.
 
-Between levels everyone waits in **the Pod**, where the gear machine sells scuba gear rolls.
-Better gear means more air underwater.
+Between levels everyone waits in **the Pod**, a closed cardboard toybox where the gear machine
+sells scuba gear rolls. Better gear means more air underwater.
 
 ## Controls
 
-- **A / D**: walk left and right
-- **W / S** (tap): hop to the layer behind or in front
+- **W A S D**: walk around
+- **Right mouse drag**: turn the camera. **Mouse wheel**: zoom.
 - **Space**: jump (and swim up)
-- **E** (hold): grab walls, crates and blocks. Press jump while hanging to launch off.
+- **E** (hold): grab walls, rafts and blocks. Press jump while hanging to launch off.
+  Grabbing something loose and heavy lets you drag it at half speed.
 
 ## Running it
 
@@ -40,7 +44,7 @@ To build a place file instead: `rojo build -o StitchSurvival.rbxlx`
 | `src/server/Score.luau` | Points, score bubbles and the combo multiplier. |
 | `src/server/Gear.luau` | Scuba gear rolls (server-side so they can't be cheated). |
 | `src/server/Doll.luau` | Turns characters into burlap dolls with a zipper. |
-| `src/client/` | Side-on camera, depth layers, HUD and effects. |
+| `src/client/` | HUD, audio, effects, grabbing and screen shake. |
 
 ## Sounds
 

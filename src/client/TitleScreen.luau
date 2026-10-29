@@ -81,19 +81,19 @@ local function stitchBorder(parent: Frame, count: number)
 end
 
 local HOW_TO_PLAY = table.concat({
-	"A / D  -  walk left and right",
-	"W / S  -  hop to the layer behind or in front",
+	"W A S D  -  walk around",
+	"Right mouse (hold and drag)  -  turn the camera.  Mouse wheel  -  zoom",
 	"Space  -  jump (and swim up)",
-	"E (hold)  -  grab walls, crates and blocks",
+	"E (hold)  -  grab walls, rafts and blocks. Jump to let go and launch off.",
 	"",
-	"BOMB HOTEL: bombs fall from the roof and time bombs get planted on the floors.",
-	"Follow the beeping to find them, and get clear before the floor collapses!",
+	"BOMB HOTEL: every 15 seconds a bomb drops somewhere in the hotel. Follow the",
+	"ticking to find it, and get clear before it blows the floors apart!",
 	"",
-	"SHARK SURVIVAL: hop between crates. Orange-taped ones sink. Dive to hide from",
-	"the clockwork shark, but watch your air. Better scuba gear = more air.",
+	"SHARK SURVIVAL: hop between foam rafts on the paper ocean. The clockwork shark",
+	"smashes rafts and pops anyone it catches. Underwater, watch your air.",
 	"",
-	"Grab score bubbles quickly for a combo. Survive to earn Stickers,",
-	"then spend them at the gear machine in the Pod.",
+	"Grab score bubbles for points. Survive to earn Stickers,",
+	"then spend them on scuba gear at the gear machine in the Pod.",
 }, "\n")
 
 function TitleScreen.show(onPlay: () -> ())

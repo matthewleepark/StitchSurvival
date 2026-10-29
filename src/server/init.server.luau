@@ -18,6 +18,7 @@ local levelModules = {
 }
 
 Players.RespawnTime = 3
+workspace.Gravity = Config.Gravity -- floaty, low-gravity toybox physics
 
 local function setStatus(text: string, timeLeft: number?)
 	ReplicatedStorage:SetAttribute("Status", text)
@@ -95,6 +96,8 @@ local function freezeWorld(level, stage, survivors: { Player })
 	end
 	for _, part in CollectionService:GetTagged("LooseDebris") do
 		if part:IsA("BasePart") then
+			part.AssemblyLinearVelocity = Vector3.zero
+			part.AssemblyAngularVelocity = Vector3.zero
 			part.Anchored = true
 		end
 	end

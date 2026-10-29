@@ -1,6 +1,8 @@
 -- Hold E (R1 on a gamepad, or the Grab button on mobile) to grab whatever is in front of you:
 -- walls, crates, foam blocks. You stick to it with a duct-tape "thwack", hang on while the yarn
 -- creaks, and let go with a rubber-band flick. Pressing jump while hanging launches you off.
+-- Grabbing something loose and heavy lets you drag it, but you walk at half speed (and your
+-- footsteps drop in pitch with you).
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -15,6 +17,8 @@ local Grab = {}
 local weld: WeldConstraint? = nil
 local creak: Sound? = nil
 local watchTarget: RBXScriptConnection? = nil
+local slowedHumanoid: Humanoid? = nil
+local HEAVY_MASS = 10
 
 local function findTarget(character: Model, root: BasePart): BasePart?
 	local params = OverlapParams.new()
@@ -50,13 +54,19 @@ local function release(launch: boolean?)
 		creak:Destroy()
 		creak = nil
 	end
+	if slowedHumanoid then
+		slowedHumanoid.WalkSpeed = 16
+		slowedHumanoid = nil
+	end
 
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if root then
 		Audio.play("GrabRelease", root)
 		if launch then
-			root.AssemblyLinearVelocity = Vector3.new(root.AssemblyLinearVelocity.X, 50, 0)
+			local velocity = root.AssemblyLinearVelocity
+			-- About a normal jump's height, whatever the gravity is set to.
+			root.AssemblyLinearVelocity = Vector3.new(velocity.X, math.sqrt(2 * workspace.Gravity * 8), velocity.Z)
 		end
 	end
 end
@@ -85,6 +95,10 @@ local function grab()
 	weld = constraint
 
 	Audio.play("GrabTack", root)
+	if not target.Anchored and target.AssemblyMass > HEAVY_MASS then
+		humanoid.WalkSpeed = 8
+		slowedHumanoid = humanoid
+	end
 	local sound = Audio.create("GrabCreak")
 	if sound then
 		sound.Looped = true

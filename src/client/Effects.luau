@@ -12,7 +12,7 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Audio = require(script.Parent.Audio)
-local StageCamera = require(script.Parent.StageCamera)
+local CameraShake = require(script.Parent.CameraShake)
 
 local Colors = Config.Colors
 local player = Players.LocalPlayer
@@ -96,6 +96,7 @@ end
 function handlers.Boom(data)
 	-- (The bang itself is played by the server so everyone hears it from the same spot.)
 	local position, radius = data.position, data.radius
+	Audio.blast() -- the music drops out for a moment
 
 	-- Bright flash that swells and fades.
 	local flash = effectPart({ Shape = Enum.PartType.Ball, Size = Vector3.one * 2, Position = position, Material = Enum.Material.Neon, Color = Colors.Gold })
@@ -135,22 +136,26 @@ function handlers.Boom(data)
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local distance = if root then (root.Position - position).Magnitude else 999
-	StageCamera.shake(math.clamp(3 - distance / 15, 0.3, 3))
+	CameraShake.shake(math.clamp(3 - distance / 15, 0.3, 3))
 end
 
 function handlers.Knock(data)
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if root and not root.Anchored then
-		root.AssemblyLinearVelocity = data.velocity
+		-- The server's numbers assume normal gravity; tone them down for the floaty world
+		-- so a blast sends you a few studs, not across the map.
+		local scale = math.sqrt(workspace.Gravity / 196.2)
+		local velocity: Vector3 = data.velocity
+		root.AssemblyLinearVelocity = Vector3.new(velocity.X * 0.6, velocity.Y * scale * 1.5, velocity.Z * 0.6)
 	end
-	StageCamera.shake(1.5)
+	CameraShake.shake(1.5)
 end
 
 function handlers.Splash(data)
 	-- Torn tissue paper flying up out of the water.
 	confetti(data.position, { Colors.Sea, Color3.fromRGB(150, 210, 245), Color3.new(1, 1, 1) }, 18, 30, Enum.Material.SmoothPlastic)
-	StageCamera.shake(0.8)
+	CameraShake.shake(0.8)
 end
 
 function handlers.Poof(data)
@@ -164,10 +169,22 @@ end
 
 function handlers.Squish(data)
 	confetti(data.position, { Colors.Burlap, Colors.Foam, Colors.FoamShade }, 16, 18)
-	StageCamera.shake(2)
+	CameraShake.shake(2)
 end
 
 -- You survived: silence, a toy-trumpet fanfare right above you, then a rain of plastic tokens.
+-- Heavy debris landed: the floor shakes if you're close.
+function handlers.Rumble(data)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if root then
+		local distance = (root.Position - data.position).Magnitude
+		if distance < 30 then
+			CameraShake.shake(1 - distance / 30)
+		end
+	end
+end
+
 function handlers.Victory(_data)
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
@@ -178,10 +195,14 @@ function handlers.Victory(_data)
 		Audio.play("Fanfare", root.Position + Vector3.new(0, 4, 0), "Interface")
 	end)
 
+	-- Plastic tokens rain down all around you (some bounce right off your head), and the
+	-- clinks come from every direction.
 	local tokenColors = { Colors.Gold, Colors.Felt, Color3.fromRGB(90, 160, 220), Color3.fromRGB(110, 190, 100) }
 	task.delay(0.6, function()
-		for i = 1, 45 do
-			local spot = root.Position + Vector3.new((math.random() - 0.5) * 14, 14 + math.random() * 6, (math.random() - 0.5) * 6)
+		for i = 1, 60 do
+			local angle = math.random() * math.pi * 2
+			local distance = if i % 6 == 0 then 0 else math.random() * 7
+			local spot = root.Position + Vector3.new(math.cos(angle) * distance, 10 + math.random() * 6, math.sin(angle) * distance)
 			local token = effectPart({
 				Shape = Enum.PartType.Cylinder,
 				Size = Vector3.new(0.25, 1.2, 1.2),
@@ -192,9 +213,11 @@ function handlers.Victory(_data)
 			token.Anchored = false
 			token.CanCollide = true
 			token.AssemblyAngularVelocity = Vector3.new(math.random(-12, 12), math.random(-12, 12), 0)
-			Debris:AddItem(token, 3)
+			Debris:AddItem(token, 4)
 			if i % 3 == 0 then
-				Audio.play("CoinClink", nil, "Interface", 0.85 + math.random() * 0.4)
+				local clinkAngle = math.random() * math.pi * 2
+				local around = root.Position + Vector3.new(math.cos(clinkAngle) * 5, 0, math.sin(clinkAngle) * 5)
+				Audio.play("CoinClink", around, "Interface", 0.85 + math.random() * 0.4)
 			end
 			task.wait(0.05)
 		end
@@ -205,6 +228,7 @@ end
 
 local animated: { [string]: { [BasePart]: CFrame } } = {
 	Bob = {},
+	Sheet = {},
 	Wave = {},
 	Sway = {},
 	Flutter = {},
@@ -260,8 +284,14 @@ local function animate(dt: number)
 		part.Size = size * (0.75 + math.noise(t * 6, part.Position.X) * 0.5 + 0.1)
 	end
 
+	-- Tissue-paper ocean: each sheet slowly lifts, lowers and tilts like a rolling wave.
+	for part, base in animated.Sheet do
+		local phase = part:GetAttribute("Phase") or 0
+		local wave = t * 0.9 + phase
+		part.CFrame = base * CFrame.new(0, math.sin(wave) * 0.5, 0) * CFrame.Angles(math.sin(wave + 1) * 0.06, 0, math.cos(wave) * 0.06)
+	end
 	for part, base in animated.Bob do
-		part.CFrame = base * CFrame.new(0, math.sin(t * 2.5 + base.Position.X) * 0.4, 0)
+		part.CFrame = base * CFrame.new(0, math.cos(t * 2.5 + base.Position.X) * 0.5, 0) -- 1-stud bob
 	end
 	for part, base in animated.Wave do
 		local phase = part:GetAttribute("Phase") or 0

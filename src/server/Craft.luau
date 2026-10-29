@@ -1,6 +1,7 @@
 -- Building blocks for the handmade scrapbook look. Every stage is assembled from these:
 -- cardboard panels with stitched edges, felt bunting, stickers, signs with bulbs, foam blocks.
--- All stages face the camera at +Z, so "front" always means +Z here.
+-- Flat decorations (signs, stickers, stitches) face +Z, the "front" of a wall facing into a stage;
+-- rotate the CFrame you pass in to put them on other walls.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -246,9 +247,8 @@ function Craft.foam(parent: Instance, cframe: CFrame, size: Vector3, shade: bool
 	return block
 end
 
--- Invisible walls so players can't wander out of the diorama.
-function Craft.boundaries(parent: Instance, origin: Vector3, width: number, height: number)
-	local depth = Config.StageDepth
+-- Invisible walls so players can't wander out of the stage.
+function Craft.boundaries(parent: Instance, origin: Vector3, width: number, height: number, depth: number)
 	local tall = height + 60
 	local props = { Transparency = 1, CanQuery = false, Name = "Boundary" }
 	for _, side in { -1, 1 } do
