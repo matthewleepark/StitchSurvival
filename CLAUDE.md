@@ -8,6 +8,15 @@ Personal notes go in `CLAUDE.local.md`, which is git-ignored and never committed
 A handmade-scrapbook, LittleBigPlanet-style survival game for Roblox (Bomb Hotel, Shark Survival,
 the Pod lobby). See `README.md` for controls and the file map.
 
+## Where the newer systems live
+- Hub: `Levels/HotelLobby.luau` (layout) and `Levels/HotelProps.luau` (furniture). The hub keeps the name
+  `Config.Pod` for its size. The old toybox is `Levels/Pod.luau`.
+- Game rooms: `Rooms.luau` queues players per guest-room door (`Config.Rooms`); the round loop in
+  `init.server.luau` plays the longest-waiting room's level. One round at a time.
+- Look: `Mood.luau` reads `Config.Mood`. Lights tagged `FlickerLight` stutter.
+- Movement: `Config.Gravity` and `Config.Doll.WalkSpeed` / `JumpHeight`. Don't hard-code speeds.
+- Client flashlight: `client/Flashlight.luau`, `Config.Flashlight`.
+
 ## Read first, every session
 1. `PLAN.md` — what we're building, who it's for, who owns which files, task status.
 2. Top entry of `LOG.md` — what changed last.
