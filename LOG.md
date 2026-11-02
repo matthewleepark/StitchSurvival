@@ -3,9 +3,16 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-01 (later) — Rosie (with Claude)
+- Matthew agreed to the changes below, so `rosie/hotel-hub` was pushed (commit `6bd9af2`) and pull request
+  [matthewleepark/StitchSurvival#1](https://github.com/matthewleepark/StitchSurvival/pull/1) was opened
+  against `main`. It is open and waiting for Matthew's review; nothing is merged yet.
+- `PLAN.md` now records the horror-hub direction as agreed.
+- Still open: the Studio playtest results (add them here), who it is for, and the hand-over date.
+
 ## 2026-11-01 — Rosie (with Claude)
 
-**Planned (Rosie's direction, not yet agreed with Matthew):** the game wasn't how Rosie imagined it, so
+**Planned (Rosie's direction; Matthew agreed to it later the same day, see the entry above):** the game wasn't how Rosie imagined it, so
 change it into a horror survival game with a hotel hub: players arrive in a hotel lobby, walk around,
 and queue for games through numbered guest-room doors (up to 32 players). Rosie chose these when asked:
 - Rooms are **game queues** (not private parties, not just a bigger server cap).

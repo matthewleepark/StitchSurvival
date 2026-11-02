@@ -1,7 +1,7 @@
 ﻿# PLAN.md — Artifact 4 team plan
 
-Items marked **TODO** need Matthew and Rosie to decide. Rosie's proposals are marked "proposed":
-they are not agreed until Matthew says so (edit this file in a PR to confirm).
+Items marked **TODO** need Matthew and Rosie to decide. Anything marked "proposed" is not agreed until
+Matthew says so (edit this file in a PR to confirm).
 
 ## Team
 - Matthew Park (repo owner), Rosie Choi
@@ -15,9 +15,10 @@ they are not agreed until Matthew says so (edit this file in a PR to confirm).
 ## What we're building
 Stitch Survival: a co-op survival game for Roblox.
 
-**Proposed direction (Rosie):** turn it into a **horror survival** game with a **hotel hub**. Players
-arrive in a dark hotel lobby, walk around, and join a numbered guest-room queue (up to 32 players) for
-Bomb Hotel or Shark Survival. Needs Matthew's OK, and the user's input once we know who it is.
+**Direction (Rosie proposed it, Matthew agreed on 2026-11-01):** turn it into a **horror survival** game
+with a **hotel hub**. Players arrive in a dark hotel lobby, walk around, and join a numbered guest-room
+queue (up to 32 players) for Bomb Hotel or Shark Survival. We still want the user's input once we know
+who it is. Pull request: [#1](https://github.com/matthewleepark/StitchSurvival/pull/1), open for review.
 
 - **TODO:** one-sentence goal for the next two weeks, chosen from what the user tells us.
 
