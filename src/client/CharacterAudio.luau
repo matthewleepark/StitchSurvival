@@ -132,10 +132,11 @@ local function track(character: Model)
 				if isLocal then
 					-- The puppet's limbs rattle and it staggers: half speed for a moment.
 					CameraShake.shake(0.6)
-					humanoid.WalkSpeed = 8
+					local staggered = Config.Doll.WalkSpeed / 2
+					humanoid.WalkSpeed = staggered
 					task.delay(0.5, function()
-						if humanoid.WalkSpeed == 8 then
-							humanoid.WalkSpeed = 16
+						if humanoid.WalkSpeed == staggered then
+							humanoid.WalkSpeed = Config.Doll.WalkSpeed
 						end
 					end)
 				end
@@ -240,7 +241,7 @@ local function update(dt: number)
 		local sound = entry.steps[style]
 		if sound then
 			local def = Config.Footsteps[style]
-			sound.PlaybackSpeed = (def.speed or 1) * (humanoid.WalkSpeed / 16) * entry.pitch
+			sound.PlaybackSpeed = (def.speed or 1) * (humanoid.WalkSpeed / Config.Doll.WalkSpeed) * entry.pitch
 		end
 	end
 end

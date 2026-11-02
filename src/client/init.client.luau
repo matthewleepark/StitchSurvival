@@ -1,4 +1,4 @@
--- Client entry point: title screen, HUD, audio, effects, grabbing and screen shake.
+-- Client entry point: title screen, HUD, audio, effects, flashlight, grabbing and screen shake.
 -- The camera is the normal Roblox third-person camera.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,6 +8,7 @@ local CameraShake = require(script.CameraShake)
 local CharacterAudio = require(script.CharacterAudio)
 local Danger = require(script.Danger)
 local Effects = require(script.Effects)
+local Flashlight = require(script.Flashlight)
 local Grab = require(script.Grab)
 local Hud = require(script.Hud)
 local TitleScreen = require(script.TitleScreen)
@@ -18,6 +19,7 @@ Hud.start()
 Effects.start()
 CharacterAudio.start()
 Danger.start()
+Flashlight.start()
 Grab.start()
 
 TitleScreen.show(function()

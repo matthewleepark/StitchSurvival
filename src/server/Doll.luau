@@ -66,6 +66,14 @@ local function dress(player: Player, character: Model)
 		character:ScaleTo(Config.Doll.Scale)
 	end
 
+	-- Set after scaling so nothing rescales them: normal-feeling movement for a doll this size.
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.UseJumpPower = false
+		humanoid.JumpHeight = Config.Doll.JumpHeight
+		humanoid.WalkSpeed = Config.Doll.WalkSpeed
+	end
+
 	if Config.Doll.RemoveClothing then
 		for _, item in character:GetChildren() do
 			if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("ShirtGraphic") then

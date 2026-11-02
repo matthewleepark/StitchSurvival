@@ -36,6 +36,7 @@ local function buildGearMachine(parent: Instance, base: Vector3): Part
 
 	return body
 end
+Pod.buildGearMachine = buildGearMachine -- the hotel lobby reuses the same machine
 
 function Pod.build()
 	local def = Config.Pod

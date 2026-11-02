@@ -4,15 +4,15 @@ local Config = {}
 
 -- Rounds ---------------------------------------------------------------------
 
-Config.MinPlayers = 1
-Config.IntermissionTime = 60 -- lower this (e.g. 10) while testing so you don't wait a full minute
+Config.MinPlayers = 1 -- players a room needs queued before its start countdown begins
+Config.IntermissionTime = 60 -- countdown once a room is ready; lower this (e.g. 10) while testing
 Config.LoadingTime = 3 -- the "map tipping out of the toybox" moment before teleporting
 Config.CountdownTime = 3
 Config.RoundTime = 120
 Config.ResultsTime = 7
 
--- World physics: a floaty, low-gravity toybox (Roblox's normal gravity is 196.2).
-Config.Gravity = 35
+-- World physics: Roblox's normal gravity. (It was 35, a floaty toybox, which made jumps huge.)
+Config.Gravity = 196.2
 
 -- Bomb Hotel: every 15 seconds a bomb is dropped at a random spot inside the hotel. Its timer
 -- ticks twice a second, doubles speed for the last 5 seconds, then it explodes: everything
@@ -51,11 +51,15 @@ Config.PlayerColors = {
 -- Every stage is a full 3D space with the normal Roblox third-person camera.
 -- origin = the center of the stage's floor. width = left-right (X), depth = front-back (Z).
 
+-- The hub is the Grand Hotel lobby (Levels/HotelLobby.luau). It keeps the Pod name so the client's
+-- stage detection and room reverb keep working. The old toybox Pod (Levels/Pod.luau) still builds
+-- from these numbers if you want it back, just bigger.
 Config.Pod = {
 	origin = Vector3.new(0, 20, 0),
-	width = 64,
-	depth = 48,
-	height = 36,
+	width = 112,
+	depth = 80,
+	height = 38,
+	mezzanineHeight = 16, -- the balcony floor; the staircases are built for exactly this (15 steps)
 }
 
 Config.Levels = {
@@ -79,6 +83,27 @@ Config.Levels = {
 		depth = 300,
 		height = 48,
 		waterDepth = 20,
+	},
+}
+
+-- Game rooms: the numbered guest-room doors on the hotel balconies. Walk up and hold E to join a
+-- room's queue (again to leave). Rounds run one at a time, so rooms take turns: the room that has
+-- been waiting longest (with at least MinPlayers) plays its level next.
+-- Also set Max Players to 32 in Studio: Home > Game Settings > Basic Info.
+Config.Rooms = {
+	capacity = 32,
+	-- room number -> level name from Config.Levels. Odd numbers are the left balcony, even the right.
+	levels = {
+		[201] = "BombHotel",
+		[203] = "BombHotel",
+		[205] = "BombHotel",
+		[207] = "BombHotel",
+		[209] = "BombHotel",
+		[202] = "SharkSurvival",
+		[204] = "SharkSurvival",
+		[206] = "SharkSurvival",
+		[208] = "SharkSurvival",
+		[210] = "SharkSurvival",
 	},
 }
 
@@ -106,6 +131,59 @@ Config.Colors = {
 	Bubble = Color3.fromRGB(190, 235, 255),
 }
 
+-- Horror look: dark and cold with warm pools of light around the lamps. All of this is applied by
+-- Mood.luau when the server starts (Studio's Lighting panel will look bright until you press Play).
+Config.Mood = {
+	ambient = Color3.fromRGB(30, 34, 48), -- indoor fill light; raise it if it's too dark to play
+	outdoorAmbient = Color3.fromRGB(28, 34, 52),
+	brightness = 0.35, -- moonlight strength
+	clockTime = 0, -- midnight
+	exposure = -0.2,
+	fogColor = Color3.fromRGB(10, 12, 18),
+	fogStart = 30,
+	fogEnd = 240,
+	hazeDensity = 0.3, -- 0 to 1
+	saturation = -0.3, -- drained colors
+	contrast = 0.12,
+	tint = Color3.fromRGB(205, 220, 235),
+	lampChance = 0.15, -- chance per 0.2 s that one lamp flickers
+	surgeEvery = { 45, 90 }, -- seconds between brief power surges where every lamp stutters
+}
+
+-- Flashlight: F on keyboard, L1 on a gamepad, a "Light" button on mobile. Only you see your own beam.
+Config.Flashlight = {
+	range = 70, -- studs
+	angle = 50, -- degrees of cone, wider = more floodlight
+	brightness = 4,
+	color = Color3.fromRGB(255, 238, 205),
+	shadows = true, -- beams stop at walls; turn off if it hurts frame rate on phones
+}
+
+-- Hotel lobby palette: faded burgundy wallpaper, dark mahogany, dusty marble and tarnished brass.
+Config.LobbyColors = {
+	Marble = Color3.fromRGB(150, 146, 138),
+	MarbleShade = Color3.fromRGB(128, 124, 116),
+	MarbleDark = Color3.fromRGB(38, 36, 42),
+	Plaster = Color3.fromRGB(110, 102, 92),
+	Ceiling = Color3.fromRGB(96, 90, 84),
+	Wallpaper = Color3.fromRGB(88, 48, 56),
+	WallpaperStripe = Color3.fromRGB(76, 40, 48),
+	Panel = Color3.fromRGB(58, 38, 30),
+	PanelLight = Color3.fromRGB(72, 48, 38),
+	PanelDark = Color3.fromRGB(40, 26, 22),
+	Cream = Color3.fromRGB(176, 164, 140),
+	Brass = Color3.fromRGB(150, 118, 62),
+	Velvet = Color3.fromRGB(92, 28, 44),
+	Navy = Color3.fromRGB(30, 40, 66),
+	Teal = Color3.fromRGB(36, 80, 80),
+	Leaf = Color3.fromRGB(70, 92, 50),
+	LeafDark = Color3.fromRGB(52, 66, 38),
+	Terracotta = Color3.fromRGB(120, 68, 50),
+	Soil = Color3.fromRGB(50, 36, 28),
+	Trunk = Color3.fromRGB(84, 64, 44),
+	Fire = Color3.fromRGB(255, 120, 40),
+}
+
 -- One wallpaper per hotel floor, bottom to top: { base, stripe }.
 Config.Wallpapers = {
 	{ Color3.fromRGB(196, 86, 86), Color3.fromRGB(172, 66, 66) },
@@ -121,6 +199,10 @@ Config.Doll = {
 	RemoveClothing = true,
 	Scale = 0.6, -- shrinks avatars to about 3 studs tall, like a little sack doll
 	Ragdoll = true, -- when popped, all the joints go loose instead of falling apart
+	-- Roblox's defaults (16 studs/s, 7.2 stud jump) are for a 5.4 stud avatar, so scale them down
+	-- with the doll. Slower than default on purpose: it keeps the tension up.
+	WalkSpeed = 10,
+	JumpHeight = 4.3, -- studs; clears a curb or a low crate, not a balcony
 }
 
 -- Below this fraction of health the heartbeat starts and the world sounds muffled.

@@ -1,4 +1,5 @@
--- Round loop: wait in the Pod, then a random survival level, then results.
+-- Round loop: players wait in the hub and queue at a game-room door; the room that has waited
+-- longest plays its level, then results, then everyone goes back to the hub.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -7,10 +8,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Doll = require(script.Doll)
 local Gear = require(script.Gear)
+local Mood = require(script.Mood)
 local Remotes = require(script.Remotes)
+local Rooms = require(script.Rooms)
 local Score = require(script.Score)
 local Util = require(script.Util)
-local Pod = require(script.Levels.Pod)
+local Pod = require(script.Levels.HotelLobby) -- the hub; swap back to script.Levels.Pod for the old toybox
 
 local levelModules = {
 	BombHotel = require(script.Levels.BombHotel),
@@ -18,7 +21,8 @@ local levelModules = {
 }
 
 Players.RespawnTime = 3
-workspace.Gravity = Config.Gravity -- floaty, low-gravity toybox physics
+workspace.Gravity = Config.Gravity
+Mood.start() -- dark, foggy, flickering: the horror look
 
 local function setStatus(text: string, timeLeft: number?)
 	ReplicatedStorage:SetAttribute("Status", text)
@@ -50,6 +54,7 @@ for _, player in Players:GetPlayers() do
 end
 
 local pod = Pod.build()
+Rooms.start(pod.rooms or {}) -- the old toybox Pod has no rooms, so nothing could start with it
 Doll.start()
 Gear.start(pod.machine)
 
@@ -66,16 +71,20 @@ local function setPhase(phase: string)
 	ReplicatedStorage:SetAttribute("Phase", phase)
 end
 
+-- Waits until some room is ready, then counts down; the countdown starts over if every ready room
+-- empties before it finishes.
 local function intermission()
 	setPhase("Intermission")
-	for t = Config.IntermissionTime, 1, -1 do
-		if #Players:GetPlayers() < Config.MinPlayers then
-			setStatus("Waiting for players...")
-			repeat
-				task.wait(1)
-			until #Players:GetPlayers() >= Config.MinPlayers
+	local t = Config.IntermissionTime
+	while t > 0 do
+		local room = Rooms.pick()
+		if room then
+			setStatus(`Room {room.number}: {room.title} in`, t)
+			t -= 1
+		else
+			setStatus("Join a room upstairs to play!")
+			t = Config.IntermissionTime
 		end
-		setStatus("Next level in", t)
 		task.wait(1)
 	end
 end
@@ -104,9 +113,20 @@ local function freezeWorld(level, stage, survivors: { Player })
 	setFrozen(survivors, true)
 end
 
-local function playRound()
-	local def = Util.weightedPick(Config.Levels)
+local function playRound(room: Rooms.Room)
+	local def
+	for _, levelDef in Config.Levels do
+		if levelDef.name == room.level then
+			def = levelDef
+		end
+	end
+	if not def then
+		warn(`[Rooms] room {room.number} wants unknown level "{room.level}"`)
+		Rooms.take(room)
+		return
+	end
 	local level = levelModules[def.name]
+	local queued = Rooms.take(room) -- the room reopens for the next game while this one plays
 
 	-- Loading: the music dips while the new level tips out of the toybox.
 	setPhase("Loading")
@@ -119,9 +139,9 @@ local function playRound()
 	local participants: { Player } = {}
 	local alive: { [Player]: boolean } = {}
 	local connections = {}
-	for _, player in Players:GetPlayers() do
+	for _, player in queued do
 		local humanoid = Util.aliveHumanoid(player)
-		if humanoid and player.Character then
+		if player.Parent and humanoid and player.Character then
 			table.insert(participants, player)
 			alive[player] = true
 			local spawnAt = stage.spawns[(#participants - 1) % #stage.spawns + 1]
@@ -258,5 +278,8 @@ end
 
 while true do
 	intermission()
-	playRound()
+	local room = Rooms.pick()
+	if room then
+		playRound(room)
+	end
 end
