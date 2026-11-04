@@ -629,7 +629,8 @@ function HotelLobby.build()
 	buildEntrance(ctx)
 	Spooky.decorate(model, ctx.O, ctx.W, ctx.D, ctx.H)
 
-	local machine = Pod.buildGearMachine(model, ctx.at(37, 0, -35))
+	-- The gear machine stands beside the red runner, right in front of where players arrive.
+	local machine = Pod.buildGearMachine(model, ctx.at(-9, 0, 14))
 
 	-- Soft hidden fill lights in a grid over the floor and along the balcony corridors, so every
 	-- area can be seen. They don't flicker; the visible lamps still do.

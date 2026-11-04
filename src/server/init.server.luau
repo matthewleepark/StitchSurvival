@@ -13,6 +13,7 @@ local Remotes = require(script.Remotes)
 local Rooms = require(script.Rooms)
 local RoundControl = require(script.RoundControl)
 local Admin = require(script.Admin)
+local Codes = require(script.Codes)
 local Score = require(script.Score)
 local Util = require(script.Util)
 local Pod = require(script.Levels.HotelLobby) -- the hub; swap back to script.Levels.Pod for the old toybox
@@ -60,6 +61,7 @@ Rooms.start(pod.rooms or {}) -- the old toybox Pod has no rooms, so nothing coul
 Doll.start()
 Gear.start(pod.machine)
 Admin.start(pod)
+Codes.start()
 
 local function sendToPod(player: Player)
 	local character = player.Character

@@ -52,6 +52,15 @@ Config.SurviveBonus = 500
 Config.PointsPerSticker = 50
 
 Config.StartingStickers = 40
+
+-- Promo codes players can type into the CODES box. Each works once per player (per visit, since
+-- nothing is saved yet). Rewards: `stickers` (a number) and/or `gear` (an item name from Config.Gear).
+-- Codes aren't case-sensitive. Add or remove them here.
+Config.Codes = {
+	WELCOME = { stickers = 50, message = "Welcome to the hotel! +50 Stickers" },
+	STITCH = { stickers = 100, message = "+100 Stickers!" },
+	CHOMP = { gear = "Spring Shoes", message = "You got Spring Shoes!" },
+}
 Config.RollCost = 20
 
 -- Each player gets a color, like the blue/pink/green/yellow players in LBP.

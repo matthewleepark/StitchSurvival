@@ -28,11 +28,54 @@ local function buildGearMachine(parent: Instance, base: Vector3): Part
 	for i, rarity in rarities do
 		local angle = i / #rarities * math.pi * 2
 		local offset = Vector3.new(math.cos(angle) * 1.8, math.sin(angle * 2) * 1.2 - 0.8, math.sin(angle) * 1.8)
-		Craft.ball(machine, globeCenter + offset, 1.4, Config.RarityColors[rarity], M.Plastic, Craft.DECOR)
+		Craft.ball(machine, globeCenter + offset, 1.4, Config.RarityColors[rarity], M.Neon, Craft.DECOR)
 	end
 	Craft.cylinder(machine, globeCenter + Vector3.new(0, 3.8, 0), 1, 3, "Y", Colors.Felt, M.Felt, Craft.DECOR)
 
 	Craft.sign(machine, base + Vector3.new(0, 16, -1), 12, 3.5, "SCUBA GEAR", { faceColor = Color3.fromRGB(200, 235, 250) })
+
+	-- Make it easy to spot from across a dark room: a glowing ring on the floor, a spotlight from
+	-- above, light from the globe, and a floating sign.
+	local ring = Craft.cylinder(machine, base + Vector3.new(0, 0.08, 0), 0.15, 12, "Y", Colors.Gold, M.Neon, Craft.DECOR)
+	ring.Transparency = 0.4
+	local lamp = Craft.block(machine, CFrame.new(base + Vector3.new(0, 24, 4)), Vector3.one * 0.3, Color3.new(), nil, Craft.DECOR)
+	lamp.Transparency = 1
+	local spot = Instance.new("SpotLight")
+	spot.Face = Enum.NormalId.Bottom
+	spot.Angle = 45
+	spot.Range = 30
+	spot.Brightness = 3
+	spot.Color = Color3.fromRGB(255, 230, 180)
+	spot.Parent = lamp
+	local globeLight = Instance.new("PointLight")
+	globeLight.Color = Color3.fromRGB(255, 200, 120)
+	globeLight.Range = 14
+	globeLight.Brightness = 1.2
+	globeLight.Parent = body
+
+	local signSpot = Craft.block(machine, CFrame.new(base + Vector3.new(0, 20.5, 0)), Vector3.one * 0.2, Color3.new(), nil, Craft.DECOR)
+	signSpot.Transparency = 1
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.fromScale(14, 3.2) -- in studs, so it shrinks with distance like a real sign
+	billboard.LightInfluence = 0
+	billboard.MaxDistance = 140
+	billboard.Parent = signSpot
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundColor3 = Colors.Felt
+	text.Font = Enum.Font.FredokaOne
+	text.TextScaled = true
+	text.TextColor3 = Colors.Paper
+	text.Text = "\u{1F3B0} ROLL FOR GEAR!"
+	text.Parent = billboard
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.25, 0)
+	corner.Parent = text
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 3
+	stroke.Color = Colors.Gold
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = text
 
 	return body
 end

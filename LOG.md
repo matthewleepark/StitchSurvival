@@ -3,6 +3,17 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-04 (codes) — Matthew (with Claude)
+Same branch.
+- **Gear machine easy to find:** moved next to the red runner right in front of the lobby spawn
+  (`HotelLobby`, at (-9, 0, 14)), with a glowing floor ring, a spotlight, glowing capsules in the globe and a
+  floating "ROLL FOR GEAR!" sign (`Pod.buildGearMachine`, so the old Pod gets it too).
+- **Promo codes:** `Config.Codes` (WELCOME +50 Stickers, STITCH +100, CHOMP = Spring Shoes). New server
+  `Codes.luau` (RemoteFunction `RedeemCode`, once per player per visit, not case-sensitive) and client
+  `CodesPanel.luau` (CODES button bottom left, text box, green/red result message).
+- **Checked:** playtest: WELCOME worked once then "already used", a fake code was rejected, CHOMP gave Spring
+  Shoes, Stickers 40 -> 90; machine 21 studs from spawn; no new console errors.
+
 ## 2026-11-04 (shark) — Matthew (with Claude)
 Same branch.
 - **One big wandering chaos shark** (`FlyingShark.luau`, `BombHotel.sharkAttacks`, `Config.Chaos`): a chaos round
