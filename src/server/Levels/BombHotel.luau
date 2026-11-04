@@ -25,7 +25,6 @@ local Bombs = require(script.Parent.Bombs)
 local RoundControl = require(script.Parent.Parent.RoundControl)
 local FlyingShark = require(script.Parent.FlyingShark)
 local Remotes = require(script.Parent.Parent.Remotes)
-local Players = game:GetService("Players")
 
 local Colors = Config.Colors
 local M = Craft.Material
@@ -367,23 +366,12 @@ local function dropBombs(stage, ctx)
 	end
 end
 
--- CHAOS MODE: sharks burst in through the outer walls, each one going for a random player inside.
+-- CHAOS MODE: one big flying shark chews its way in a few seconds into the round and roams the
+-- hotel until the round ends.
 local function sharkAttacks(stage, ctx)
-	local settings = Config.Chaos
-	task.wait(settings.firstShark)
-	while ctx.isActive() do
-		local inside = {}
-		for _, player in Players:GetPlayers() do
-			local root = Util.rootPart(player)
-			local offset = root and (root.Position - stage.origin)
-			if offset and Util.aliveHumanoid(player) and math.abs(offset.X) < stage.width / 2 and math.abs(offset.Z) < stage.depth / 2 then
-				table.insert(inside, player)
-			end
-		end
-		if #inside > 0 then
-			task.spawn(FlyingShark.attack, stage, inside[math.random(1, #inside)])
-		end
-		task.wait(math.random(settings.sharkEvery[1], settings.sharkEvery[2]))
+	task.wait(Config.Chaos.firstShark)
+	if ctx.isActive() then
+		FlyingShark.attack(stage, ctx)
 	end
 end
 

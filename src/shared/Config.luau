@@ -24,17 +24,18 @@ Config.PlantedBombInterval = 15 -- at the start; it shortens to half this by the
 Config.PlantedBombFuse = 12
 Config.PlantedBombBlastRadius = 25
 
--- Bomb Hotel CHAOS MODE: sometimes a round turns chaotic. Points are doubled, but battle-scarred
--- sharks burst in through the hotel's outer walls (a red crack warns where) and chomp anyone in reach.
+-- Bomb Hotel CHAOS MODE: sometimes a round turns chaotic. Points are doubled, and one huge,
+-- battle-scarred flying shark chews its way in through an outer wall (a red crack warns where), then
+-- flies around the hotel on its own wandering path for the rest of the round, chewing through anything
+-- in its way and chomping anyone it runs into.
 Config.Chaos = {
 	chance = 0.25, -- chance a Bomb Hotel round is chaotic
 	scoreMultiplier = 2,
-	firstShark = 8, -- seconds into the round before the first shark
-	sharkEvery = { 5, 9 }, -- seconds between sharks
-	warning = 1.5, -- seconds the red crack glows before a shark bursts through
+	firstShark = 8, -- seconds into the round before the shark arrives
+	warning = 1.5, -- seconds the red crack glows before the shark appears
+	sharkScale = 2, -- how big the shark is (1 = 15 studs long, 2 = 30)
 	sharkSpeed = 11, -- studs per second; slower than you walk, so you can get away
-	sharkChew = 0.45, -- seconds per block it bites through on its way in
-	sharkStay = 22, -- seconds a shark hunts inside before it gives up and leaves
+	sharkChew = 0.45, -- seconds per block it bites through
 }
 
 -- Shark Survival: the shark switches from patrolling to hunting when a player is this close.

@@ -3,6 +3,15 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-04 (shark) — Matthew (with Claude)
+Same branch.
+- **One big wandering chaos shark** (`FlyingShark.luau`, `BombHotel.sharkAttacks`, `Config.Chaos`): a chaos round
+  now gets a single shark, twice the size (`sharkScale = 2`, about 30 studs long). After the wall crack it chews in,
+  then flies to random spots around the hotel instead of chasing players, chewing through whatever is in the way
+  and chomping anyone it runs into (once each). It stays until the round ends.
+- **Checked:** playtest: max 1 shark at once, ~44 x 22 x 21 studs, path went from outside the wall through the
+  hotel; no new console errors.
+
 ## 2026-11-04 (later) — Matthew (with Claude)
 Same branch.
 - **Breakable walls and ground floor over acid** (`BombHotel.luau`): the outer walls are now 8x8 breakable
