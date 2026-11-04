@@ -90,9 +90,10 @@ local function collapse(block: BasePart, origin: Vector3)
 		if character and humanoid then
 			-- Falling down onto someone = squashed flat.
 			if block.AssemblyLinearVelocity.Y < -CRUSH_SPEED and block.Position.Y > hit.Position.Y + 1 and humanoid.Health > 0 then
-				humanoid.Health = 0
-				Util.playSound("Crush", block)
-				Remotes.fireAll("Squish", { position = hit.Position })
+				if Util.kill(humanoid) then
+					Util.playSound("Crush", block)
+					Remotes.fireAll("Squish", { position = hit.Position })
+				end
 			end
 		elseif not landed and hit.CanCollide and block.AssemblyLinearVelocity.Magnitude > 12 then
 			landed = true
@@ -103,6 +104,18 @@ local function collapse(block: BasePart, origin: Vector3)
 	end)
 
 	Debris:AddItem(block, 8)
+end
+
+-- Breaks one block the way a blast would: it rips loose and falls (used by the chaos sharks as
+-- they chew through walls and floors).
+function Bombs.breakBlock(stage, block: BasePart, from: Vector3)
+	if not block.Parent or not block:GetAttribute("Breakable") then
+		return
+	end
+	collapse(block, from)
+	if stage.cleanDecor then
+		stage.cleanDecor(block.Position, 7)
+	end
 end
 
 -- Orange cellophane fire that spreads outward in a widening circle along the floor.
@@ -141,7 +154,7 @@ function Bombs.ignite(stage, center: Vector3)
 				local now = os.clock()
 				if now - (lastBurn[humanoid] or 0) > 0.6 then
 					lastBurn[humanoid] = now
-					humanoid:TakeDamage(FIRE_DAMAGE)
+					Util.damage(humanoid, FIRE_DAMAGE, true)
 					Score.breakCombo(player)
 					local root = Util.rootPart(player)
 					if root then
@@ -196,6 +209,9 @@ function Bombs.explode(stage, position: Vector3)
 	if collapsed then
 		Util.soundAt("VelcroRip", position + Vector3.new(0, 4, 0))
 	end
+	if (broke or collapsed) and stage.cleanDecor then
+		stage.cleanDecor(position, blastRadius)
+	end
 
 	for _, player in Players:GetPlayers() do
 		local humanoid = Util.aliveHumanoid(player)
@@ -204,7 +220,7 @@ function Bombs.explode(stage, position: Vector3)
 			local offset = root.Position - position
 			local distance = offset.Magnitude
 			if distance < DAMAGE_RADIUS then
-				humanoid:TakeDamage(MAX_DAMAGE * (1 - 0.5 * distance / DAMAGE_RADIUS))
+				Util.damage(humanoid, MAX_DAMAGE * (1 - 0.5 * distance / DAMAGE_RADIUS), true)
 				Score.breakCombo(player)
 				local flat = Util.flatten(offset)
 				local push = (if flat.Magnitude > 0.1 then flat.Unit else Vector3.xAxis) * KNOCKBACK
@@ -262,6 +278,7 @@ local function buildBomb(stage, position: Vector3)
 
 	bomb:SetNetworkOwner(nil) -- server-controlled so everyone sees the same blast
 	Craft.tag(bomb, "Occluded") -- its sounds get muffled when a floor or wall is in the way
+	Craft.tag(bomb, "Hazard") -- the Spooky Sense passive shows it through walls
 	return bomb, number
 end
 

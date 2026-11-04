@@ -8,6 +8,9 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
 local Audio = require(script.Parent.Audio)
 
 local player = Players.LocalPlayer
@@ -55,7 +58,7 @@ local function release(launch: boolean?)
 		creak = nil
 	end
 	if slowedHumanoid then
-		slowedHumanoid.WalkSpeed = 16
+		slowedHumanoid.WalkSpeed = slowedHumanoid:GetAttribute("BaseWalkSpeed") or Config.Doll.WalkSpeed
 		slowedHumanoid = nil
 	end
 
@@ -66,7 +69,7 @@ local function release(launch: boolean?)
 		if launch then
 			local velocity = root.AssemblyLinearVelocity
 			-- About a normal jump's height, whatever the gravity is set to.
-			root.AssemblyLinearVelocity = Vector3.new(velocity.X, math.sqrt(2 * workspace.Gravity * 8), velocity.Z)
+			root.AssemblyLinearVelocity = Vector3.new(velocity.X, math.sqrt(2 * workspace.Gravity * Config.Doll.JumpHeight), velocity.Z)
 		end
 	end
 end
@@ -96,7 +99,7 @@ local function grab()
 
 	Audio.play("GrabTack", root)
 	if not target.Anchored and target.AssemblyMass > HEAVY_MASS then
-		humanoid.WalkSpeed = 8
+		humanoid.WalkSpeed = Config.Doll.WalkSpeed / 2
 		slowedHumanoid = humanoid
 	end
 	local sound = Audio.create("GrabCreak")

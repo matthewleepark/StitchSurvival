@@ -22,6 +22,9 @@ local Craft = require(script.Parent.Parent.Craft)
 local Score = require(script.Parent.Parent.Score)
 local Util = require(script.Parent.Parent.Util)
 local Bombs = require(script.Parent.Bombs)
+local RoundControl = require(script.Parent.Parent.RoundControl)
+local FlyingShark = require(script.Parent.FlyingShark)
+local Remotes = require(script.Parent.Parent.Remotes)
 
 local Colors = Config.Colors
 local M = Craft.Material
@@ -148,22 +151,70 @@ function BombHotel.build(def)
 		return O + Vector3.new(x, y, z or 0)
 	end
 
-	-- Lobby floor: solid wood with a checkered tile pattern.
-	Craft.block(model, CFrame.new(at(0, -2)), Vector3.new(W + 8, 4, D + 8), Colors.WoodDark, M.Wood)
+	-- Lobby floor: checkered wooden tiles that bombs (and sharks) can break, so the ground floor can
+	-- fall away too.
 	for i = 0, W / BLOCK - 1 do
 		for j = 0, D / BLOCK - 1 do
 			local color = if (i + j) % 2 == 0 then Colors.Paper else Color3.fromRGB(70, 60, 70)
-			Craft.block(decor, CFrame.new(at(-W / 2 + BLOCK / 2 + i * BLOCK, 0.03, -D / 2 + BLOCK / 2 + j * BLOCK)), Vector3.new(BLOCK, 0.06, BLOCK), color, M.Plastic, Craft.DECOR)
+			local tile = Craft.block(breakables, CFrame.new(at(-W / 2 + BLOCK / 2 + i * BLOCK, -1, -D / 2 + BLOCK / 2 + j * BLOCK)), Vector3.new(BLOCK, 2, BLOCK), color, M.Wood)
+			tile.Name = "FloorTile"
+			tile:SetAttribute("Breakable", true)
 		end
 	end
 
-	-- Outer walls and roof (these never break, so the hotel stays a closed box).
+	-- Outer walls: breakable cardboard tiles, so bombs can blow holes in them and sharks can chew
+	-- their way in. The roof stays solid.
 	local wallHeight = roofY + 2
+	local rows = math.ceil(wallHeight / 8)
+	local tileHeight = wallHeight / rows
+	local function wallTiles(center: Vector3, length: number, alongX: boolean)
+		local count = math.ceil(length / 8)
+		local tileWidth = length / count
+		for i = 0, count - 1 do
+			for row = 0, rows - 1 do
+				local offset = -length / 2 + tileWidth / 2 + i * tileWidth
+				local position = center + (if alongX then Vector3.new(offset, 0, 0) else Vector3.new(0, 0, offset)) + Vector3.new(0, tileHeight / 2 + row * tileHeight, 0)
+				local size = if alongX then Vector3.new(tileWidth, tileHeight, 2) else Vector3.new(2, tileHeight, tileWidth)
+				local color = if (i + row) % 2 == 0 then Colors.CardboardDark else Color3.fromRGB(140, 102, 66)
+				local tile = Craft.block(breakables, CFrame.new(position), size, color, M.Cardboard)
+				tile.Name = "WallTile"
+				tile:SetAttribute("Breakable", true)
+			end
+		end
+	end
 	for _, side in { -1, 1 } do
-		Craft.block(model, CFrame.new(at(side * (W / 2 + 1), wallHeight / 2, 0)), Vector3.new(2, wallHeight, D + 4), Colors.CardboardDark)
-		Craft.block(model, CFrame.new(at(0, wallHeight / 2, side * (D / 2 + 1))), Vector3.new(W + 4, wallHeight, 2), Colors.CardboardDark)
+		wallTiles(at(0, 0, side * (D / 2 + 1)), W + 4, true) -- front and back
+		wallTiles(at(side * (W / 2 + 1), 0, 0), D, false) -- left and right
 	end
 	Craft.block(model, CFrame.new(at(0, roofY + 1, 0)), Vector3.new(W + 4, 2, D + 4), Colors.Cardboard)
+
+	-- Green acid all around and underneath. Fall through a hole in the floor or out of a broken wall
+	-- and you land in it: popped.
+	local acid = Craft.block(model, CFrame.new(at(0, -16, 0)), Vector3.new(W + 160, 2, D + 160), Color3.fromRGB(110, 255, 70), M.Neon, { CanCollide = false, CanQuery = false, Name = "Acid" })
+	acid.Transparency = 0.15
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(110, 255, 70)
+	glow.Range = 40
+	glow.Brightness = 1.5
+	glow.Parent = acid
+	local fizz = Instance.new("ParticleEmitter")
+	fizz.Color = ColorSequence.new(Color3.fromRGB(170, 255, 120))
+	fizz.LightEmission = 0.6
+	fizz.Size = NumberSequence.new(0.6, 0)
+	fizz.Lifetime = NumberRange.new(1, 2)
+	fizz.Speed = NumberRange.new(2, 5)
+	fizz.Rate = 60
+	fizz.SpreadAngle = Vector2.new(10, 10)
+	fizz.EmissionDirection = Enum.NormalId.Top
+	fizz.Parent = acid
+	acid.Touched:Connect(function(hit)
+		local character, humanoid = Util.characterFromPart(hit)
+		if character and humanoid and humanoid.Health > 0 and Util.kill(humanoid) then
+			Util.soundAt("AcidFizz", hit.Position)
+			Remotes.fireAll("Poof", { position = hit.Position, color = Color3.fromRGB(110, 255, 70) })
+		end
+	end)
+
 	for wallIndex, rotation in { 0, math.pi / 2, math.pi, -math.pi / 2 } do
 		decorateWall(decor, O, W, D, floors, H, rotation, wallIndex - 1)
 	end
@@ -244,7 +295,7 @@ function BombHotel.build(def)
 	humSpot.Transparency = 1
 	Util.loopSound("HotelHum", humSpot)
 
-	Craft.boundaries(model, O, W, roofY + 10, D)
+	Craft.boundaries(model, O, W + 40, roofY + 10, D + 40)
 
 	model.Parent = workspace
 
@@ -265,7 +316,19 @@ function BombHotel.build(def)
 		floorHeight = H,
 		roofY = roofY,
 		spawns = spawns,
-		killY = O.Y - 20,
+		killY = O.Y - 25,
+		-- Wall decorations (wallpaper, windows, lamps) near a spot where the wall was broken go too,
+		-- so nothing is left floating in mid-air.
+		cleanDecor = function(position: Vector3, radius: number)
+			for _, part in decor:GetDescendants() do
+				if part:IsA("BasePart") and (part.Position - position).Magnitude < radius then
+					local offset = part.Position - O
+					if math.abs(offset.X) > W / 2 - 3 or math.abs(offset.Z) > D / 2 - 3 then
+						part:Destroy()
+					end
+				end
+			end
+		end,
 		timerHand = timerHand,
 		frozen = false,
 	}
@@ -292,18 +355,36 @@ local function spawnBubbles(stage, ctx)
 	end
 end
 
--- Every 15 seconds, drop a bomb at a random spot anywhere inside the hotel.
+-- Drop a bomb at a random spot anywhere inside the hotel: every 15 seconds at first, getting faster
+-- (down to half that) as the round goes on.
 local function dropBombs(stage, ctx)
 	while ctx.isActive() do
 		local height = math.random(2, stage.roofY - 6)
 		local spot = Util.randomAround(stage.origin, stage.width / 2 - 6, stage.depth / 2 - 6) + Vector3.new(0, height, 0)
 		task.spawn(Bombs.plant, stage, spot)
-		task.wait(Config.PlantedBombInterval)
+		task.wait(Config.PlantedBombInterval * (1 - 0.5 * ctx.progress()))
+	end
+end
+
+-- CHAOS MODE: one big flying shark chews its way in a few seconds into the round and roams the
+-- hotel until the round ends.
+local function sharkAttacks(stage, ctx)
+	task.wait(Config.Chaos.firstShark)
+	if ctx.isActive() then
+		FlyingShark.attack(stage, ctx)
 	end
 end
 
 function BombHotel.run(stage, ctx)
 	task.spawn(spawnBubbles, stage, ctx)
+
+	-- Sometimes the round is CHAOTIC: double points, but sharks come through the walls.
+	if RoundControl.forceChaos or math.random() < Config.Chaos.chance then
+		RoundControl.forceChaos = false
+		Score.setRoundMultiplier(Config.Chaos.scoreMultiplier)
+		Remotes.fireAll("Chaos", { multiplier = Config.Chaos.scoreMultiplier })
+		task.spawn(sharkAttacks, stage, ctx)
+	end
 
 	-- A few calm seconds: just the hum and the clock.
 	task.wait(3)

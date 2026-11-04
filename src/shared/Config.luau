@@ -4,22 +4,39 @@ local Config = {}
 
 -- Rounds ---------------------------------------------------------------------
 
-Config.MinPlayers = 1
-Config.IntermissionTime = 60 -- lower this (e.g. 10) while testing so you don't wait a full minute
+-- Players who get the admin panel (testing tools). Roblox usernames, any capitalization.
+Config.Admins = { "3HBQ" }
+
+Config.MinPlayers = 1 -- players a room needs queued before its start countdown begins
+Config.IntermissionTime = 60 -- countdown once a room is ready; lower this (e.g. 10) while testing
 Config.LoadingTime = 3 -- the "map tipping out of the toybox" moment before teleporting
 Config.CountdownTime = 3
 Config.RoundTime = 120
 Config.ResultsTime = 7
 
--- World physics: a floaty, low-gravity toybox (Roblox's normal gravity is 196.2).
-Config.Gravity = 35
+-- World physics: Roblox's normal gravity. (It was 35, a floaty toybox, which made jumps huge.)
+Config.Gravity = 196.2
 
 -- Bomb Hotel: every 15 seconds a bomb is dropped at a random spot inside the hotel. Its timer
 -- ticks twice a second, doubles speed for the last 5 seconds, then it explodes: everything
 -- within 25 studs (floor blocks, pillars, ramps) is ripped loose and thrown outward.
-Config.PlantedBombInterval = 15
+Config.PlantedBombInterval = 15 -- at the start; it shortens to half this by the end of the round
 Config.PlantedBombFuse = 12
 Config.PlantedBombBlastRadius = 25
+
+-- Bomb Hotel CHAOS MODE: sometimes a round turns chaotic. Points are doubled, and one huge,
+-- battle-scarred flying shark chews its way in through an outer wall (a red crack warns where), then
+-- flies around the hotel on its own wandering path for the rest of the round, chewing through anything
+-- in its way and chomping anyone it runs into.
+Config.Chaos = {
+	chance = 0.25, -- chance a Bomb Hotel round is chaotic
+	scoreMultiplier = 2,
+	firstShark = 8, -- seconds into the round before the shark arrives
+	warning = 1.5, -- seconds the red crack glows before the shark appears
+	sharkScale = 2, -- how big the shark is (1 = 15 studs long, 2 = 30)
+	sharkSpeed = 11, -- studs per second; slower than you walk, so you can get away
+	sharkChew = 0.45, -- seconds per block it bites through
+}
 
 -- Shark Survival: the shark switches from patrolling to hunting when a player is this close.
 Config.SharkHuntRadius = 45
@@ -35,6 +52,15 @@ Config.SurviveBonus = 500
 Config.PointsPerSticker = 50
 
 Config.StartingStickers = 40
+
+-- Promo codes players can type into the CODES box. Each works once per player (per visit, since
+-- nothing is saved yet). Rewards: `stickers` (a number) and/or `gear` (an item name from Config.Gear).
+-- Codes aren't case-sensitive. Add or remove them here.
+Config.Codes = {
+	WELCOME = { stickers = 50, message = "Welcome to the hotel! +50 Stickers" },
+	STITCH = { stickers = 100, message = "+100 Stickers!" },
+	CHOMP = { gear = "Bouncy Stuffing", message = "You got Bouncy Stuffing!" },
+}
 Config.RollCost = 20
 
 -- Each player gets a color, like the blue/pink/green/yellow players in LBP.
@@ -51,11 +77,15 @@ Config.PlayerColors = {
 -- Every stage is a full 3D space with the normal Roblox third-person camera.
 -- origin = the center of the stage's floor. width = left-right (X), depth = front-back (Z).
 
+-- The hub is the Grand Hotel lobby (Levels/HotelLobby.luau). It keeps the Pod name so the client's
+-- stage detection and room reverb keep working. The old toybox Pod (Levels/Pod.luau) still builds
+-- from these numbers if you want it back, just bigger.
 Config.Pod = {
 	origin = Vector3.new(0, 20, 0),
-	width = 64,
-	depth = 48,
-	height = 36,
+	width = 112,
+	depth = 80,
+	height = 38,
+	mezzanineHeight = 16, -- the balcony floor; the staircases are built for exactly this (15 steps)
 }
 
 Config.Levels = {
@@ -79,6 +109,27 @@ Config.Levels = {
 		depth = 300,
 		height = 48,
 		waterDepth = 20,
+	},
+}
+
+-- Game rooms: the numbered guest-room doors on the hotel balconies. Walk up and hold E to join a
+-- room's queue (again to leave). Rounds run one at a time, so rooms take turns: the room that has
+-- been waiting longest (with at least MinPlayers) plays its level next.
+-- Also set Max Players to 32 in Studio: Home > Game Settings > Basic Info.
+Config.Rooms = {
+	capacity = 32,
+	-- room number -> level name from Config.Levels. Odd numbers are the left balcony, even the right.
+	levels = {
+		[201] = "BombHotel",
+		[203] = "BombHotel",
+		[205] = "BombHotel",
+		[207] = "BombHotel",
+		[209] = "BombHotel",
+		[202] = "SharkSurvival",
+		[204] = "SharkSurvival",
+		[206] = "SharkSurvival",
+		[208] = "SharkSurvival",
+		[210] = "SharkSurvival",
 	},
 }
 
@@ -106,6 +157,77 @@ Config.Colors = {
 	Bubble = Color3.fromRGB(190, 235, 255),
 }
 
+-- Horror look: dark and cold with warm pools of light around the lamps. All of this is applied by
+-- Mood.luau when the server starts (Studio's Lighting panel will look bright until you press Play).
+Config.Mood = {
+	-- Neutral horror lighting: dim and moody, but every area can be seen. Lower these for darker, raise for brighter.
+	ambient = Color3.fromRGB(38, 36, 46), -- indoor fill light; raise it if it's too dark to play
+	outdoorAmbient = Color3.fromRGB(34, 38, 52),
+	brightness = 0.4, -- moonlight strength
+	clockTime = 0, -- midnight
+	exposure = -0.15,
+	fogColor = Color3.fromRGB(16, 16, 24),
+	fogStart = 40,
+	fogEnd = 260,
+	hazeDensity = 0.26, -- 0 to 1
+	lampBrightness = 1.2, -- every lobby lamp's brightness is multiplied by this
+	lampRange = 1.1, -- ... and how far its light reaches
+	fillLight = 0.22, -- soft hidden lights spread over the lobby so no area is pitch black (0 = off)
+	saturation = -0.3, -- drained colors
+	contrast = 0.12,
+	tint = Color3.fromRGB(205, 220, 235),
+	lampChance = 0.15, -- chance per 0.2 s that one lamp flickers
+	surgeEvery = { 45, 90 }, -- seconds between brief power surges where every lamp stutters
+}
+
+-- Camera: how close and how far you can zoom (studs from your doll), and how far the camera stays
+-- in front of walls so it never peeks through them.
+Config.Camera = {
+	minZoom = 2,
+	maxZoom = 18,
+	wallGap = 1.2,
+}
+
+-- Spooky lobby extras (cobwebs, dust, portraits whose eyes light up now and then).
+Config.Spooky = {
+	eyesEvery = { 6, 14 }, -- seconds between a portrait's eyes glowing
+	dust = 12, -- floating dust specks per second (0 = none)
+}
+
+-- Flashlight: F on keyboard, L1 on a gamepad, a "Light" button on mobile. Only you see your own beam.
+Config.Flashlight = {
+	range = 70, -- studs
+	angle = 50, -- degrees of cone, wider = more floodlight
+	brightness = 4,
+	color = Color3.fromRGB(255, 238, 205),
+	shadows = true, -- beams stop at walls; turn off if it hurts frame rate on phones
+}
+
+-- Hotel lobby palette: faded burgundy wallpaper, dark mahogany, dusty marble and tarnished brass.
+Config.LobbyColors = {
+	Marble = Color3.fromRGB(150, 146, 138),
+	MarbleShade = Color3.fromRGB(128, 124, 116),
+	MarbleDark = Color3.fromRGB(38, 36, 42),
+	Plaster = Color3.fromRGB(110, 102, 92),
+	Ceiling = Color3.fromRGB(96, 90, 84),
+	Wallpaper = Color3.fromRGB(88, 48, 56),
+	WallpaperStripe = Color3.fromRGB(76, 40, 48),
+	Panel = Color3.fromRGB(58, 38, 30),
+	PanelLight = Color3.fromRGB(72, 48, 38),
+	PanelDark = Color3.fromRGB(40, 26, 22),
+	Cream = Color3.fromRGB(176, 164, 140),
+	Brass = Color3.fromRGB(150, 118, 62),
+	Velvet = Color3.fromRGB(92, 28, 44),
+	Navy = Color3.fromRGB(30, 40, 66),
+	Teal = Color3.fromRGB(36, 80, 80),
+	Leaf = Color3.fromRGB(70, 92, 50),
+	LeafDark = Color3.fromRGB(52, 66, 38),
+	Terracotta = Color3.fromRGB(120, 68, 50),
+	Soil = Color3.fromRGB(50, 36, 28),
+	Trunk = Color3.fromRGB(84, 64, 44),
+	Fire = Color3.fromRGB(255, 120, 40),
+}
+
 -- One wallpaper per hotel floor, bottom to top: { base, stripe }.
 Config.Wallpapers = {
 	{ Color3.fromRGB(196, 86, 86), Color3.fromRGB(172, 66, 66) },
@@ -119,25 +241,57 @@ Config.Wallpapers = {
 Config.Doll = {
 	Enabled = true,
 	RemoveClothing = true,
-	Scale = 0.6, -- shrinks avatars to about 3 studs tall, like a little sack doll
+	Scale = 1, -- normal Roblox avatar height
 	Ragdoll = true, -- when popped, all the joints go loose instead of falling apart
+	-- Roblox's defaults (16 studs/s, 7.2 stud jump) are for a 5.4 stud avatar, so scale them down
+	-- with the doll. Slower than default on purpose: it keeps the tension up.
+	WalkSpeed = 16, -- Roblox default
+	JumpHeight = 7.2, -- studs, Roblox default
 }
 
 -- Below this fraction of health the heartbeat starts and the world sounds muffled.
 Config.LowHealth = 0.4
 
--- Scuba gear (the RNG) ----------------------------------------------------------
--- Players roll at the gear machine in the lobby. More oxygen = longer underwater.
--- You always keep your best gear, so a bad roll never makes you worse.
+-- Passives (the RNG) ------------------------------------------------------------------
+-- Walk up to the passive machine in the lobby to open its panel: it lists every passive, its rarity,
+-- its chance and what it does, and has the ROLL button (a spinning reel picks one). Everything you
+-- roll goes in your collection; equip whichever one you like. Every passive helps in every game.
+--
+-- What a passive can do (all optional, mix and match):
+--   speed        extra walk speed
+--   jump         extra jump height (studs)
+--   toughness    0.2 = you take 20% less damage from everything (bombs, fire, drowning)
+--   regen        heals this much health every second
+--   air          extra seconds of air underwater
+--   magnet       pulls in score bubbles from this many studs away
+--   scoreBonus   0.25 = +25% points
+--   sense        see bombs and sharks through walls
+--   secondChance survive one pop (or knockout) per round, at half health
+-- A "secret" passive shows up as ??? in the panel until you own it.
+-- (The code still calls these "gear" internally: Config.Gear, the "Gear" attribute.)
 
-Config.DefaultOxygen = 5
+Config.DefaultOxygen = 10 -- seconds of air everyone has; the air passive adds to this
 Config.Gear = {
-	{ name = "Paper Snorkel", rarity = "Common", weight = 60, oxygen = 8 },
-	{ name = "Bubble Wrap Suit", rarity = "Uncommon", weight = 25, oxygen = 12 },
-	{ name = "Tin Can Helmet", rarity = "Rare", weight = 10, oxygen = 18 },
-	{ name = "Clockwork Diving Bell", rarity = "Epic", weight = 4, oxygen = 28 },
-	{ name = "Golden Fishbowl", rarity = "Legendary", weight = 1, oxygen = 45 },
+	{ name = "Lucky Thread", rarity = "Common", weight = 34, icon = "\u{1F9F5}", passives = { scoreBonus = 0.15 } },
+	{ name = "Quick Laces", rarity = "Common", weight = 26, icon = "\u{1F45F}", passives = { speed = 2 } },
+	{ name = "Bouncy Stuffing", rarity = "Uncommon", weight = 14, icon = "\u{2601}\u{FE0F}", passives = { jump = 3, speed = 1 } },
+	{ name = "Thick Felt", rarity = "Uncommon", weight = 11, icon = "\u{1F9F6}", passives = { toughness = 0.2, air = 5 } },
+	{ name = "Button Magnet", rarity = "Rare", weight = 6, icon = "\u{1F9F2}", passives = { magnet = 10, scoreBonus = 0.1 } },
+	{ name = "Mending Needle", rarity = "Rare", weight = 4, icon = "\u{1FAA1}", passives = { regen = 2, toughness = 0.15 } },
+	{ name = "Spooky Sense", rarity = "Epic", weight = 2.4, icon = "\u{1F441}\u{FE0F}", passives = { sense = true, speed = 2 } },
+	{ name = "Deep Breath", rarity = "Epic", weight = 1.6, icon = "\u{1FAC1}", passives = { air = 20, regen = 1, speed = 1 } },
+	{ name = "Golden Zipper", rarity = "Legendary", weight = 0.9, icon = "\u{2B50}", passives = { secondChance = true, scoreBonus = 0.25 } },
+	{
+		name = "Shark Tooth Charm",
+		rarity = "Secret",
+		weight = 0.1,
+		icon = "\u{1F9B7}",
+		secret = true,
+		passives = { speed = 3, jump = 3, toughness = 0.4, regen = 3, air = 40, magnet = 12, scoreBonus = 0.5, sense = true, secondChance = true },
+	},
 }
+
+Config.RarityOrder = { Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5, Secret = 6 }
 
 Config.RarityColors = {
 	Common = Color3.fromRGB(180, 170, 150),
@@ -145,6 +299,7 @@ Config.RarityColors = {
 	Rare = Color3.fromRGB(80, 150, 230),
 	Epic = Color3.fromRGB(170, 90, 220),
 	Legendary = Color3.fromRGB(250, 190, 40),
+	Secret = Color3.fromRGB(255, 70, 110),
 }
 
 function Config.getGear(name: string?)
@@ -154,6 +309,55 @@ function Config.getGear(name: string?)
 		end
 	end
 	return nil
+end
+
+-- One passive of the gear a player has equipped (by gear name), or nil.
+function Config.passive(gearName: string?, key: string): any
+	local gear = Config.getGear(gearName)
+	return gear and gear.passives[key]
+end
+
+-- The chance of rolling an item, as a percentage.
+function Config.gearChance(gear): number
+	local total = 0
+	for _, entry in Config.Gear do
+		total += entry.weight
+	end
+	return gear.weight / total * 100
+end
+
+-- Plain-English lines describing an item's passives, for the panel and the HUD.
+function Config.describePassives(gear): { string }
+	local p = gear.passives
+	local lines = {}
+	if p.speed then
+		table.insert(lines, `+{p.speed} walk speed`)
+	end
+	if p.jump then
+		table.insert(lines, `+{p.jump} jump height`)
+	end
+	if p.toughness then
+		table.insert(lines, `Take {math.floor(p.toughness * 100)}% less damage`)
+	end
+	if p.regen then
+		table.insert(lines, `Heals {p.regen} health per second`)
+	end
+	if p.air then
+		table.insert(lines, `+{p.air}s of air underwater`)
+	end
+	if p.magnet then
+		table.insert(lines, `Pulls in score bubbles from {p.magnet} studs`)
+	end
+	if p.scoreBonus then
+		table.insert(lines, `+{math.floor(p.scoreBonus * 100)}% points`)
+	end
+	if p.sense then
+		table.insert(lines, "See bombs and sharks through walls")
+	end
+	if p.secondChance then
+		table.insert(lines, "Survive one pop per round")
+	end
+	return lines
 end
 
 -- Sounds -----------------------------------------------------------------------
@@ -184,6 +388,8 @@ Config.Sounds = {
 	Countdown = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.7, speed = 1.2 },
 	Go = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.9, speed = 1.8 },
 	GearRoll = { id = "", volume = 0.6 }, -- gumball machine crank
+	ReelTick = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.3, speed = 2.6 }, -- click as each item spins past
+	ReelWin = { id = "", volume = 0.8 }, -- the reel lands on your item
 
 	-- Round flow ---------------------------------------------------------------------
 	MapClear = { id = "", volume = 0.5 }, -- structural clink-clack as the old level is packed away
@@ -218,6 +424,9 @@ Config.Sounds = {
 	WaterRustle = { id = "", volume = 0.25, looped = true, range = 250 }, -- thousands of tissue-paper pieces stirred by a fan
 	SharkMotor = { id = "", volume = 0.6, looped = true, range = 90 }, -- clockwork whir-click-whir (pitched up when it hunts)
 	Breach = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.9, range = 150 }, -- violent RIP-CRUNCH as it breaks the surface
+	AcidFizz = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.8, speed = 1.4, range = 80 }, -- a sizzle as someone drops into the acid
+	SharkRoar = { id = "", volume = 0.9, range = 150 }, -- a deep rumble as a shark bursts through a wall
+	WallCrack = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.8, speed = 0.4, range = 100 }, -- the wall cracking right before
 	Chomp = { id = "", volume = 0.9, range = 120 }, -- blunt CLACK of two thick plywood slabs
 	PlatformSnap = { id = "", volume = 0.8, range = 120 }, -- wooden popsicle stick SNAP
 	PlatformSink = { id = "", volume = 0.6, range = 100 }, -- fizz-muffle / gurgle-glug as it sinks
@@ -240,6 +449,8 @@ Config.Sounds = {
 	GrabRelease = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.5, speed = 2.6, range = 60 }, -- rubber band flick
 	JumpWhoosh = { id = "", volume = 0.25, range = 40 }, -- low sweeping whoosh of air at the top of a jump
 	BubbleHum = { id = "", volume = 0.15, looped = true, range = 14 }, -- faint crystalline mmm-ring-mmm from each score bubble
+	LobbyCreak = { id = "", volume = 0.4, range = 90 }, -- old wooden floorboards / door hinge creaking in the dark
+	LobbyWhisper = { id = "", volume = 0.25, range = 60 }, -- faint, unclear whispering
 	BubblePop = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.6, speed = 3.2, range = 80 }, -- glassy "ting!" (marble on crystal)
 }
 

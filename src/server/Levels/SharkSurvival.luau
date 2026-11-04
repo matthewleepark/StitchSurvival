@@ -8,7 +8,7 @@
 --     bob, tip when you stand near an edge, and dip under when several people crowd one side.
 --     A soft spring keeps each one from drifting away. Landing on one squeaks; an edge dipping
 --     under sloshes.
---   * Underwater you use up air (better scuba gear = more air) and start to drown at zero.
+--   * Underwater you use up air (the air passive gives you more) and start to drown at zero.
 --   * When the shark smashes a raft it SNAPs into five pieces that sink with a gurgle, and a
 --     fresh raft pops back in its place 12 seconds later.
 
@@ -265,14 +265,13 @@ local function updateOxygen(stage, dt: number)
 		local head = character and character:FindFirstChild("Head") :: BasePart?
 		local humanoid = Util.aliveHumanoid(player)
 		if head and humanoid and stage.contains(head.Position) then
-			local gear = Config.getGear(player:GetAttribute("Gear"))
-			local maxOxygen = if gear then gear.oxygen else Config.DefaultOxygen
+			local maxOxygen = Config.DefaultOxygen + (Util.passive(player, "air") or 0)
 			local oxygen = player:GetAttribute("Oxygen") or maxOxygen
 
 			if head.Position.Y < stage.waterTop - 0.3 then
 				oxygen = math.max(0, oxygen - dt)
 				if oxygen <= 0 then
-					humanoid:TakeDamage(DROWN_DAMAGE_PER_SECOND * dt)
+					Util.damage(humanoid, DROWN_DAMAGE_PER_SECOND * dt)
 				end
 			else
 				oxygen = math.min(maxOxygen, oxygen + OXYGEN_REFILL_PER_SECOND * dt)

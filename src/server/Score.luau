@@ -14,21 +14,31 @@ local Score = {}
 
 local scores: { [Player]: number } = {}
 local lastBubble: { [Player]: number } = {}
+local bubbles: { [BasePart]: (Player) -> () } = {} -- live bubbles -> how to collect them
+local roundMultiplier = 1 -- Chaos Mode doubles everything
 
 function Score.reset()
 	table.clear(scores)
 	table.clear(lastBubble)
+	roundMultiplier = 1
 	for _, player in Players:GetPlayers() do
 		player:SetAttribute("Score", 0)
 		player:SetAttribute("Multiplier", 1)
+		player:SetAttribute("ChanceUsed", nil) -- the "second chance" passive works once per round
 	end
+end
+
+function Score.setRoundMultiplier(multiplier: number)
+	roundMultiplier = multiplier
 end
 
 function Score.get(player: Player): number
 	return scores[player] or 0
 end
 
+-- Adds points, boosted by the round (Chaos Mode) and the player's gear (scoreBonus passive).
 function Score.add(player: Player, points: number, position: Vector3?)
+	points = math.floor(points * roundMultiplier * (1 + (Util.passive(player, "scoreBonus") or 0)) + 0.5)
 	scores[player] = (scores[player] or 0) + points
 	player:SetAttribute("Score", scores[player])
 	if position then
@@ -82,23 +92,47 @@ function Score.spawnBubble(parent: Instance, position: Vector3, lifetime: number
 	Craft.tag(bubble, "Bob")
 	Util.loopSound("BubbleHum", bubble)
 
-	local collected = false
-	bubble.Touched:Connect(function(hit)
-		if collected then
+	local function grab(player: Player)
+		if not bubbles[bubble] then
 			return
 		end
+		bubbles[bubble] = nil
+		collect(player, bubble.Position)
+		bubble:Destroy()
+	end
+	bubbles[bubble] = grab
+	bubble.Destroying:Connect(function()
+		bubbles[bubble] = nil
+	end)
+	bubble.Touched:Connect(function(hit)
 		local character = Util.characterFromPart(hit)
 		local player = character and Players:GetPlayerFromCharacter(character)
 		if player and Util.aliveHumanoid(player) then
-			collected = true
-			collect(player, bubble.Position)
-			bubble:Destroy()
+			grab(player)
 		end
 	end)
 
 	Debris:AddItem(bubble, lifetime or 14)
 	return bubble
 end
+
+-- The magnet passive: bubbles within reach of a player wearing one fly to them.
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		for _, player in Players:GetPlayers() do
+			local reach = Util.passive(player, "magnet")
+			local root = reach and Util.rootPart(player)
+			if root and Util.aliveHumanoid(player) then
+				for bubble, grab in bubbles do
+					if (bubble.Position - root.Position).Magnitude <= reach then
+						grab(player)
+					end
+				end
+			end
+		end
+	end
+end)
 
 Players.PlayerRemoving:Connect(function(player)
 	scores[player] = nil
