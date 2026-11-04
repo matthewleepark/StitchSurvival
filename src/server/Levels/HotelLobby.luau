@@ -236,8 +236,9 @@ end
 -- waiting room behind the wall with rows of chairs (Rooms.luau seats people there). The pad sits
 -- against the wall, so the rest of the balcony is free to walk along without stepping on it.
 local LEVEL_GLOW = { BombHotel = Color3.fromRGB(255, 150, 60), SharkSurvival = Color3.fromRGB(90, 180, 255) }
+local LEVEL_ICON = { BombHotel = "\u{1F4A3}", SharkSurvival = "\u{1F988}" } -- bomb, shark
 local ROOM_DEPTH = 22 -- how far the waiting room goes back behind the wall
-local ROOM_WIDTH = 14 -- along the wall
+local ROOM_WIDTH = 13 -- along the wall (a 1-stud gap between neighbouring rooms)
 local SEAT_ROWS, SEATS_PER_ROW = 4, 8
 
 local function buildRoomEntry(ctx, side: number, z: number, number: number, levelName: string)
@@ -266,22 +267,44 @@ local function buildRoomEntry(ctx, side: number, z: number, number: number, leve
 		Craft.ball(decor, post + Vector3.new(0, 0.8, 0), 0.5, L.Brass, M.Metal, DECOR)
 	end
 
-	-- Text floating over the pad.
-	local textSpot = box(model, padCenter.X, MZ + 6.5, padCenter.Z, 0.2, 0.2, 0.2, Color3.new(), nil, INVISIBLE)
-	textSpot.CanCollide = false
+	-- A big sign floating over the pad, readable from anywhere in the lobby (even through walls):
+	-- the game's name with a picture, how many players are in, and what to do.
+	local icon = LEVEL_ICON[levelName] or ""
+	local signSpot = box(model, padCenter.X, MZ + 7.5, padCenter.Z, 0.2, 0.2, 0.2, Color3.new(), nil, INVISIBLE)
+	signSpot.CanCollide = false
 	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.fromOffset(230, 70)
-	billboard.MaxDistance = 45
-	billboard.Parent = textSpot
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.TextColor3 = glow
-	label.TextStrokeTransparency = 0.2
-	label.Text = `Room {number}\n{title}`
-	label.Parent = billboard
+	billboard.Size = UDim2.fromOffset(260, 130)
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 90
+	billboard.LightInfluence = 0
+	billboard.Parent = signSpot
+	local card = Instance.new("Frame")
+	card.Size = UDim2.fromScale(1, 1)
+	card.BackgroundColor3 = Color3.fromRGB(250, 240, 214)
+	card.BackgroundTransparency = 0.05
+	card.Parent = billboard
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 14)
+	corner.Parent = card
+	local stroke = Instance.new("UIStroke")
+	stroke.Thickness = 4
+	stroke.Color = glow
+	stroke.Parent = card
+	local function line(text: string, y: number, height: number, color: Color3): TextLabel
+		local label = Instance.new("TextLabel")
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.fromScale(0.05, y)
+		label.Size = UDim2.fromScale(0.9, height)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.TextColor3 = color
+		label.Text = text
+		label.Parent = card
+		return label
+	end
+	line(`{icon} {string.upper(title)}`, 0.05, 0.32, glow)
+	local countLabel = line("0 / 32 players", 0.4, 0.3, Color3.fromRGB(60, 42, 30))
+	local hintLabel = line("Step on the glowing square!", 0.72, 0.22, Color3.fromRGB(110, 90, 70))
 
 	-- The waiting room behind the wall.
 	local inner = side * (W / 2 + 4) -- just past the lobby's outer wall
@@ -290,10 +313,10 @@ local function buildRoomEntry(ctx, side: number, z: number, number: number, leve
 	box(decor, center.X, center.Y + 0.05, center.Z, ROOM_DEPTH - 1, 0.1, ROOM_WIDTH - 1, L.Velvet, M.Carpet, DECOR)
 	box(model, center.X, center.Y + 10.5, center.Z, ROOM_DEPTH, 1, ROOM_WIDTH, L.Ceiling, M.Foam)
 	for _, dz in { -1, 1 } do
-		box(model, center.X, center.Y + 5, center.Z + dz * (ROOM_WIDTH / 2 + 0.5), ROOM_DEPTH, 10, 1, L.Panel, M.Wood)
+		box(model, center.X, center.Y + 5, center.Z + dz * (ROOM_WIDTH / 2 - 0.5), ROOM_DEPTH, 10, 1, L.Panel, M.Wood)
 	end
 	for _, dx in { -1, 1 } do
-		box(model, center.X + dx * (ROOM_DEPTH / 2 + 0.5), center.Y + 5, center.Z, 1, 10, ROOM_WIDTH, L.Panel, M.Wood)
+		box(model, center.X + dx * (ROOM_DEPTH / 2 - 0.5), center.Y + 5, center.Z, 1, 10, ROOM_WIDTH, L.Panel, M.Wood)
 	end
 	local lamp = box(decor, center.X, center.Y + 9.7, center.Z, 2, 0.3, 2, L.Cream, M.Neon, DECOR)
 	local roomLight = Instance.new("PointLight")
@@ -303,7 +326,7 @@ local function buildRoomEntry(ctx, side: number, z: number, number: number, leve
 	roomLight.Parent = lamp
 
 	-- A screen on the far wall showing the level and who's waiting.
-	local farX = center.X + side * (ROOM_DEPTH / 2 - 0.2)
+	local farX = center.X + side * (ROOM_DEPTH / 2 - 1.2)
 	local screenAt = Vector3.new(farX, center.Y + 5.5, center.Z)
 	local screen = Craft.block(decor, CFrame.lookAt(screenAt, screenAt - Vector3.new(side, 0, 0)), Vector3.new(10, 5, 0.2), Color3.fromRGB(20, 20, 26), M.Plastic, DECOR)
 	local screenGui = Instance.new("SurfaceGui")
@@ -317,7 +340,7 @@ local function buildRoomEntry(ctx, side: number, z: number, number: number, leve
 	screenLabel.Font = Enum.Font.FredokaOne
 	screenLabel.TextScaled = true
 	screenLabel.TextColor3 = glow
-	screenLabel.Text = title
+	screenLabel.Text = `{icon} {string.upper(title)}`
 	screenLabel.Parent = screenGui
 
 	-- Rows of chairs facing the screen.
@@ -325,19 +348,19 @@ local function buildRoomEntry(ctx, side: number, z: number, number: number, leve
 	for row = 1, SEAT_ROWS do
 		local x = ctx.O.X + inner + side * (2.5 + row * 4)
 		for i = 1, SEATS_PER_ROW do
-			local seatZ = center.Z - (SEATS_PER_ROW - 1) * 0.8 + (i - 1) * 1.6
+			local seatZ = center.Z - (SEATS_PER_ROW - 1) * 0.675 + (i - 1) * 1.35
 			local spot = Vector3.new(x, center.Y + 1.1, seatZ)
 			local facing = CFrame.lookAt(spot, spot + Vector3.new(side, 0, 0))
 			local seat = Instance.new("Seat")
 			seat.Name = "WaitSeat"
-			seat.Size = Vector3.new(1.4, 0.4, 1.4)
+			seat.Size = Vector3.new(1.2, 0.4, 1.2)
 			seat.CFrame = facing
 			seat.Anchored = true
 			seat.Color = L.Velvet
 			seat.Material = M.Felt
 			seat.TopSurface = Enum.SurfaceType.Smooth
 			seat.Parent = model
-			Craft.block(decor, facing * CFrame.new(0, 0.7, 0.75), Vector3.new(1.4, 1.6, 0.2), L.Velvet, M.Felt, DECOR)
+			Craft.block(decor, facing * CFrame.new(0, 0.8, 0.72), Vector3.new(1.2, 1.6, 0.12), L.Velvet, M.Felt, DECOR)
 			Craft.block(decor, facing * CFrame.new(0, -0.6, 0), Vector3.new(0.3, 0.8, 0.3), L.Brass, M.Metal, DECOR)
 			table.insert(seats, seat)
 		end
@@ -348,7 +371,8 @@ local function buildRoomEntry(ctx, side: number, z: number, number: number, leve
 		level = levelName,
 		title = title,
 		pad = pad,
-		label = label,
+		countLabel = countLabel,
+		hintLabel = hintLabel,
 		screenLabel = screenLabel,
 		seats = seats,
 		-- where you're put back when you stand up: on the balcony, clear of the pad, facing the lobby

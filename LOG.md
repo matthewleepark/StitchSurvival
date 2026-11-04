@@ -3,6 +3,16 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-03 (latest) — Matthew (with Claude)
+Same branch.
+- **Waiting-room flicker fixed:** each room's walls were in the same place as the lobby's outer wall (and the next
+  room's wall), so they flickered. Walls now sit inside the room's own footprint; rooms are 13 wide with a gap.
+  Chairs slightly narrower and their backs set clear of the doll.
+- **Big, kid-friendly signs:** each pad has a large always-on-top card: "💣 BOMB HOTEL" / "🦈 SHARK SURVIVAL",
+  "0 / 32 players", and "Step on the glowing square!" (or "FULL - try another room"). The waiting-room screen shows
+  the level, the count and "Waiting for N more..." / "Starting soon!".
+- **Checked:** playtest shows the sign text before/after joining (0/32 -> 1/32), seated, no new console errors.
+
 ## 2026-11-03 (late) — Matthew (with Claude)
 Same branch. **Rosie, this reworks a lot of your lobby and `Rooms.luau`, please review:**
 - **Joining a room is now a pad, not hold-E.** A glowing pad (orange = Bomb Hotel, blue = Shark Survival) sits in

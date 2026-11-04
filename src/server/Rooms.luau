@@ -20,7 +20,8 @@ export type Room = {
 	title: string,
 	members: { Player },
 	waitingSince: number, -- when the room first got a player, so the longest-waiting room goes first
-	label: TextLabel?,
+	countLabel: TextLabel?,
+	hintLabel: TextLabel?,
 	screenLabel: TextLabel?,
 	seats: { Seat },
 	exit: CFrame,
@@ -38,13 +39,17 @@ end
 local function refresh(room: Room)
 	local count = #room.members
 	local capacity = math.min(Config.Rooms.capacity, #room.seats)
-	if room.label then
-		room.label.Text = if count >= capacity
-			then `Room {room.number}: {room.title}\nFull ({count}/{capacity})`
-			else `Room {room.number}: {room.title}\n{count}/{capacity} waiting - step in to join`
+	local full = count >= capacity
+	if room.countLabel then
+		room.countLabel.Text = `{count} / {capacity} players`
+	end
+	if room.hintLabel then
+		room.hintLabel.Text = if full then "FULL - try another room" else "Step on the glowing square!"
 	end
 	if room.screenLabel then
-		room.screenLabel.Text = `{room.title}\n{count}/{capacity} waiting`
+		local need = math.max(0, Config.MinPlayers - count)
+		local status = if need > 0 then `Waiting for {need} more...` else "Starting soon!"
+		room.screenLabel.Text = `{room.title}\n{count} / {capacity} players\n{status}`
 	end
 end
 
@@ -158,7 +163,8 @@ function Rooms.start(doors)
 			title = door.title,
 			members = {},
 			waitingSince = 0,
-			label = door.label,
+			countLabel = door.countLabel,
+			hintLabel = door.hintLabel,
 			screenLabel = door.screenLabel,
 			seats = door.seats,
 			exit = door.exit,
