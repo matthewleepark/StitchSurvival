@@ -218,12 +218,12 @@ Config.Wallpapers = {
 Config.Doll = {
 	Enabled = true,
 	RemoveClothing = true,
-	Scale = 0.85, -- about 4.3 studs tall: a little smaller than a normal Roblox avatar
+	Scale = 1, -- normal Roblox avatar height
 	Ragdoll = true, -- when popped, all the joints go loose instead of falling apart
 	-- Roblox's defaults (16 studs/s, 7.2 stud jump) are for a 5.4 stud avatar, so scale them down
 	-- with the doll. Slower than default on purpose: it keeps the tension up.
-	WalkSpeed = 13,
-	JumpHeight = 6, -- studs; clears a crate, not a balcony
+	WalkSpeed = 16, -- Roblox default
+	JumpHeight = 7.2, -- studs, Roblox default
 }
 
 -- Below this fraction of health the heartbeat starts and the world sounds muffled.

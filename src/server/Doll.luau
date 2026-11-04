@@ -90,9 +90,9 @@ local function decoration(name: string, size: Vector3, cframe: CFrame, color: Co
 	return part
 end
 
--- Cute proportions: a slightly bigger head on a smaller, chubbier body.
+-- Cute proportions: normal height, a slightly bigger head and a chubbier body.
 local function cuteProportions(humanoid: Humanoid)
-	local scales = { HeadScale = 1.25, BodyHeightScale = 0.85, BodyWidthScale = 1.05, BodyDepthScale = 1.05 }
+	local scales = { HeadScale = 1.2, BodyWidthScale = 1.05, BodyDepthScale = 1.05 } -- normal height, a slightly bigger head
 	for name, value in scales do
 		local scale = humanoid:FindFirstChild(name)
 		if scale and scale:IsA("NumberValue") then

@@ -3,6 +3,18 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-03 (bus) — Matthew (with Claude)
+Same branch.
+- **Normal height:** `Config.Doll.Scale` 1, `WalkSpeed` 16, `JumpHeight` 7.2 (Roblox defaults). The doll keeps a
+  slightly bigger head (1.2) but no longer has a shorter body.
+- **Buses instead of waiting rooms:** behind each door is now a dark hotel shuttle bus (32 seats in 8 rows of
+  2 + 2, an aisle, windows onto the night, an empty driver's seat, and a destination sign over the windshield
+  showing the level, count and status). Stepping on the pad seats you on the bus; new client `BusCamera.luau`
+  locks first person while you sit in a `WaitSeat` and restores the normal camera when you jump off.
+  `Rooms.join` retries the seat once if the avatar was still loading.
+- **Checked:** playtest: seated within 0.25 s, first person on the bus, jumping off -> normal camera, out of the
+  queue, back on the balcony; no new console errors.
+
 ## 2026-11-03 (final) — Matthew (with Claude)
 Same branch.
 - **Room signs are solid wall boards now**, not floating cards (the always-on-top cards stacked on top of each

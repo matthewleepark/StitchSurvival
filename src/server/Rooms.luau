@@ -1,7 +1,7 @@
 -- Game rooms: each numbered guest-room door in the hotel is a queue for one level.
 --
--- Step onto the glowing pad in front of a door to join: you're taken into that room's waiting room
--- and sat down in the next free chair (the next person to join gets the next chair). Jump to stand
+-- Step onto the glowing pad in front of a door to join: you're put on that room's bus and sat down in
+-- the next free seat, in first person (the next person to join gets the next seat). Jump to stand
 -- up and leave; you're put back on the balcony. The floating text over the pad and the screen inside
 -- the room show how many are waiting. The round loop in init.server.luau asks for the room that has
 -- waited longest, then takes its players into the level.
@@ -53,7 +53,7 @@ local function refresh(room: Room)
 	end
 end
 
--- Gets a player out of their waiting-room chair without sending them anywhere.
+-- Gets a player out of their bus seat without sending them anywhere.
 local function unseat(player: Player)
 	local seat = seatOf[player]
 	seatOf[player] = nil
@@ -128,10 +128,16 @@ local function join(room: Room, player: Player)
 	refresh(room)
 	tell(player, `Joined room {room.number}: {room.title}. Jump to leave.`)
 
-	-- Into the waiting room and down into the chair.
+	-- Onto the bus and down into the seat.
 	character:PivotTo(seat.CFrame + Vector3.new(0, 2, 0))
 	task.wait(0.1)
 	if seatOf[player] == seat then
+		seat:Sit(humanoid)
+	end
+	-- If the avatar was still loading in, the first try can slip; try once more.
+	task.wait(0.5)
+	if seatOf[player] == seat and seat.Occupant ~= humanoid and humanoid.Health > 0 then
+		character:PivotTo(seat.CFrame + Vector3.new(0, 2, 0))
 		seat:Sit(humanoid)
 	end
 
