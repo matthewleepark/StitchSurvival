@@ -223,12 +223,12 @@ local function buildStairs(ctx, side: number)
 	local highRail = at(xTop, MZ + 3.2, openZ)
 	for _, drop in { 0, 2.4 } do
 		local a, b = lowRail - Vector3.new(0, drop, 0), highRail - Vector3.new(0, drop, 0)
-		Craft.block(model, CFrame.lookAt((a + b) / 2, b), Vector3.new(0.6, if drop == 0 then 0.5 else 0.25, (b - a).Magnitude), L.Panel, M.Wood)
+		Craft.block(model, CFrame.lookAt((a + b) / 2, b), Vector3.new(0.6, if drop == 0 then 0.5 else 0.25, (b - a).Magnitude), L.Panel, M.Wood).Name = "Railing"
 	end
 	local guardLow, guardHigh = at(xBottom, 3, openZ), at(xTop, MZ + 2.5, openZ)
 	Craft.block(model, CFrame.lookAt((guardLow + guardHigh) / 2, guardHigh), Vector3.new(0.4, 6, (guardHigh - guardLow).Magnitude), Color3.new(), nil, INVISIBLE)
 	local newel = at(xBottom - side * 0.6, 3, openZ)
-	box(model, newel.X, newel.Y, newel.Z, 1.2, 6, 1.2, L.Panel, M.Wood)
+	box(model, newel.X, newel.Y, newel.Z, 1.2, 6, 1.2, L.Panel, M.Wood).Name = "Railing"
 	Craft.ball(decor, newel + Vector3.new(0, 3.4, 0), 1.4, L.Brass, M.Metal, DECOR)
 
 	-- Wall side: one clean wooden board running up along the wall, instead of a second railing.
@@ -462,7 +462,7 @@ local function buildMezzanine(ctx)
 			end
 			local runLength, runMid = to - from, (from + to) / 2
 			local rail = at(edge + side * 0.3, MZ + 3.1, runMid)
-			box(decor, rail.X, rail.Y, rail.Z, 0.7, 0.4, runLength, L.Panel, M.Wood)
+			box(decor, rail.X, rail.Y, rail.Z, 0.7, 0.4, runLength, L.Panel, M.Wood).Name = "Railing"
 			local base = at(edge + side * 0.3, MZ + 0.2, runMid)
 			box(decor, base.X, base.Y, base.Z, 0.7, 0.4, runLength, L.Panel, M.Wood, DECOR)
 			for z = to - 0.8, from + 0.5, -2.4 do
@@ -472,7 +472,7 @@ local function buildMezzanine(ctx)
 			Craft.block(model, CFrame.new(guard), Vector3.new(0.5, 6, runLength), Color3.new(), nil, INVISIBLE)
 			for _, z in { from + 0.5, to - 0.5 } do
 				local newel = at(edge + side * 0.3, MZ + 2, z)
-				box(decor, newel.X, newel.Y, newel.Z, 1, 4, 1, L.Panel, M.Wood)
+				box(decor, newel.X, newel.Y, newel.Z, 1, 4, 1, L.Panel, M.Wood).Name = "Railing"
 			end
 		end
 
@@ -668,6 +668,14 @@ function HotelLobby.build()
 			if biggest >= 3 and middle >= 1.5 then
 				part.CanCollide = true
 			end
+		end
+	end
+
+	-- Railings stop you from falling (with invisible guards along them), but the camera looks right
+	-- through them so they never get in the way of your view.
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part.Name == "Railing" then
+			part.CanQuery = false
 		end
 	end
 

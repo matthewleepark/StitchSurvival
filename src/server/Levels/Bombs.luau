@@ -106,6 +106,18 @@ local function collapse(block: BasePart, origin: Vector3)
 	Debris:AddItem(block, 8)
 end
 
+-- Breaks one block the way a blast would: it rips loose and falls (used by the chaos sharks as
+-- they chew through walls and floors).
+function Bombs.breakBlock(stage, block: BasePart, from: Vector3)
+	if not block.Parent or not block:GetAttribute("Breakable") then
+		return
+	end
+	collapse(block, from)
+	if stage.cleanDecor then
+		stage.cleanDecor(block.Position, 7)
+	end
+end
+
 -- Orange cellophane fire that spreads outward in a widening circle along the floor.
 function Bombs.ignite(stage, center: Vector3)
 	local crackle = Craft.block(stage.model, CFrame.new(center), Vector3.one, Color3.new(), nil, Craft.DECOR)
@@ -196,6 +208,9 @@ function Bombs.explode(stage, position: Vector3)
 	end
 	if collapsed then
 		Util.soundAt("VelcroRip", position + Vector3.new(0, 4, 0))
+	end
+	if (broke or collapsed) and stage.cleanDecor then
+		stage.cleanDecor(position, blastRadius)
 	end
 
 	for _, player in Players:GetPlayers() do

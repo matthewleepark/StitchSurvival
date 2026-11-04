@@ -32,7 +32,9 @@ Config.Chaos = {
 	firstShark = 8, -- seconds into the round before the first shark
 	sharkEvery = { 5, 9 }, -- seconds between sharks
 	warning = 1.5, -- seconds the red crack glows before a shark bursts through
-	sharkSpeed = 38, -- studs per second
+	sharkSpeed = 11, -- studs per second; slower than you walk, so you can get away
+	sharkChew = 0.45, -- seconds per block it bites through on its way in
+	sharkStay = 22, -- seconds a shark hunts inside before it gives up and leaves
 }
 
 -- Shark Survival: the shark switches from patrolling to hunting when a player is this close.
@@ -403,6 +405,7 @@ Config.Sounds = {
 	WaterRustle = { id = "", volume = 0.25, looped = true, range = 250 }, -- thousands of tissue-paper pieces stirred by a fan
 	SharkMotor = { id = "", volume = 0.6, looped = true, range = 90 }, -- clockwork whir-click-whir (pitched up when it hunts)
 	Breach = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.9, range = 150 }, -- violent RIP-CRUNCH as it breaks the surface
+	AcidFizz = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.8, speed = 1.4, range = 80 }, -- a sizzle as someone drops into the acid
 	SharkRoar = { id = "", volume = 0.9, range = 150 }, -- a deep rumble as a shark bursts through a wall
 	WallCrack = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.8, speed = 0.4, range = 100 }, -- the wall cracking right before
 	Chomp = { id = "", volume = 0.9, range = 120 }, -- blunt CLACK of two thick plywood slabs

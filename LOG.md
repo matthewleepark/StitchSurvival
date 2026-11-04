@@ -3,6 +3,21 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-04 (later) — Matthew (with Claude)
+Same branch.
+- **Breakable walls and ground floor over acid** (`BombHotel.luau`): the outer walls are now 8x8 breakable
+  cardboard tiles and the lobby floor is breakable wooden tiles. Under and around the hotel is a pool of green
+  acid; touching it pops you (`AcidFizz` sound). Invisible boundaries moved out so you can fall through a hole.
+  Wall decorations near a break are cleaned up (`stage.cleanDecor`) so nothing floats.
+- **Fair chaos sharks** (`FlyingShark.luau`, `Config.Chaos`): no more phasing. A shark appears outside after the
+  red crack and has to chew through the wall (one block per 0.45 s, `Bombs.breakBlock`); inside it flops (rolls,
+  wiggles, bobs), hunts the closest player at 11 studs/s (slower than walking), chews through floors and pillars
+  in its way, and leaves after 22 s.
+- **Lobby railings:** stairs and balcony rails are named `Railing` and set `CanQuery = false`, so the camera looks
+  through them; invisible guards still stop anyone falling.
+- **Checked:** playtest: shark appeared, took ~4 s to chew in; 694 wall/floor tiles; dropping into the acid
+  popped me; no new console errors.
+
 ## 2026-11-04 — Matthew (with Claude)
 Same branch.
 - **Gear overhaul** (`Config.Gear`, `server/Gear.luau`, new `client/GearPanel.luau`): 10 items with passives
