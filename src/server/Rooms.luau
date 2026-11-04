@@ -1,6 +1,10 @@
--- Game rooms: each numbered guest-room door in the hotel is a queue for one level. Players hold E at
--- a door to join (or leave) that room; the door sign shows who's queued. The round loop in
--- init.server.luau asks for the room that has waited longest, then takes its players into the level.
+-- Game rooms: each numbered guest-room door in the hotel is a queue for one level.
+--
+-- Step onto the glowing pad in front of a door to join: you're taken into that room's waiting room
+-- and sat down in the next free chair (the next person to join gets the next chair). Jump to stand
+-- up and leave; you're put back on the balcony. The floating text over the pad and the screen inside
+-- the room show how many are waiting. The round loop in init.server.luau asks for the room that has
+-- waited longest, then takes its players into the level.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,12 +21,15 @@ export type Room = {
 	members: { Player },
 	waitingSince: number, -- when the room first got a player, so the longest-waiting room goes first
 	label: TextLabel?,
-	prompt: ProximityPrompt,
+	screenLabel: TextLabel?,
+	seats: { Seat },
+	exit: CFrame,
 }
 
 local rooms: { Room } = {}
 local roomOf: { [Player]: Room } = {}
-local lastTrigger: { [Player]: number } = {}
+local seatOf: { [Player]: Seat } = {}
+local lastTouch: { [Player]: number } = {}
 
 local function tell(player: Player, text: string)
 	Remotes.fire(player, "Announce", { text = text, color = Config.Colors.Gold })
@@ -30,12 +37,31 @@ end
 
 local function refresh(room: Room)
 	local count = #room.members
-	local full = count >= Config.Rooms.capacity
+	local capacity = math.min(Config.Rooms.capacity, #room.seats)
 	if room.label then
-		room.label.Text = `{room.title}  {count}/{Config.Rooms.capacity}`
+		room.label.Text = if count >= capacity
+			then `Room {room.number}: {room.title}\nFull ({count}/{capacity})`
+			else `Room {room.number}: {room.title}\n{count}/{capacity} waiting - step in to join`
 	end
-	room.prompt.ObjectText = `Room {room.number} - {room.title} ({count}/{Config.Rooms.capacity})`
-	room.prompt.ActionText = if full then "Room full" else "Join or leave"
+	if room.screenLabel then
+		room.screenLabel.Text = `{room.title}\n{count}/{capacity} waiting`
+	end
+end
+
+-- Gets a player out of their waiting-room chair without sending them anywhere.
+local function unseat(player: Player)
+	local seat = seatOf[player]
+	seatOf[player] = nil
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.Sit = false
+	end
+	if seat then
+		local weld = seat:FindFirstChild("SeatWeld")
+		if weld then
+			weld:Destroy()
+		end
+	end
 end
 
 local function leave(player: Player)
@@ -52,66 +78,115 @@ local function leave(player: Player)
 	refresh(room)
 end
 
-local function join(room: Room, player: Player)
-	local now = os.clock()
-	if lastTrigger[player] and now - lastTrigger[player] < 0.5 then
-		return
+local function freeSeat(room: Room): Seat?
+	for _, seat in room.seats do
+		if not seat.Occupant then
+			local taken = false
+			for _, other in seatOf do
+				if other == seat then
+					taken = true
+				end
+			end
+			if not taken then
+				return seat
+			end
+		end
 	end
-	lastTrigger[player] = now
+	return nil
+end
 
-	if roomOf[player] == room then
-		leave(player)
-		tell(player, `You left room {room.number}`)
+local function join(room: Room, player: Player)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not character or not humanoid or humanoid.Health <= 0 or roomOf[player] then
 		return
 	end
-	if #room.members >= Config.Rooms.capacity then
+	local now = os.clock()
+	if lastTouch[player] and now - lastTouch[player] < 1.5 then
+		return
+	end
+	lastTouch[player] = now
+
+	local seat = freeSeat(room)
+	if #room.members >= Config.Rooms.capacity or not seat then
 		tell(player, `Room {room.number} is full`)
 		return
 	end
 
-	leave(player)
 	if #room.members == 0 then
 		room.waitingSince = now
 	end
 	table.insert(room.members, player)
 	roomOf[player] = room
+	seatOf[player] = seat
 	player:SetAttribute("Room", room.number)
 	refresh(room)
-	tell(player, `Joined room {room.number}: {room.title}`)
-	print(`[Rooms] {player.Name} joined room {room.number} ({#room.members}/{Config.Rooms.capacity})`)
+	tell(player, `Joined room {room.number}: {room.title}. Jump to leave.`)
+
+	-- Into the waiting room and down into the chair.
+	character:PivotTo(seat.CFrame + Vector3.new(0, 2, 0))
+	task.wait(0.1)
+	if seatOf[player] == seat then
+		seat:Sit(humanoid)
+	end
+
+	-- Standing up (jumping) means leaving the room: back out onto the balcony.
+	local connection
+	connection = seat:GetPropertyChangedSignal("Occupant"):Connect(function()
+		if seat.Occupant ~= nil then
+			return
+		end
+		connection:Disconnect()
+		if seatOf[player] == seat and roomOf[player] == room then
+			unseat(player) -- make sure the chair has really let go before moving them
+			leave(player)
+			task.wait()
+			if player.Character then
+				player.Character:PivotTo(room.exit)
+			end
+			tell(player, `You left room {room.number}`)
+		end
+	end)
 end
 
--- `doors` comes from HotelLobby.build(): { number, level, title, zone, label } for each game room.
+-- `doors` comes from HotelLobby.build(): { number, level, title, pad, label, screenLabel, seats, exit }.
 function Rooms.start(doors)
 	for _, door in doors do
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.HoldDuration = 0.3
-		prompt.MaxActivationDistance = 10
-		prompt.RequiresLineOfSight = false
-		prompt.Parent = door.zone
-
 		local room: Room = {
 			number = door.number,
 			level = door.level,
 			title = door.title,
 			members = {},
 			waitingSince = 0,
-			label = door.label:FindFirstChildWhichIsA("TextLabel", true),
-			prompt = prompt,
+			label = door.label,
+			screenLabel = door.screenLabel,
+			seats = door.seats,
+			exit = door.exit,
 		}
 		table.insert(rooms, room)
 		refresh(room)
 
-		prompt.Triggered:Connect(function(player: Player)
-			join(room, player)
+		door.pad.Touched:Connect(function(hit)
+			local character = hit:FindFirstAncestorOfClass("Model")
+			local player = character and Players:GetPlayerFromCharacter(character)
+			if player then
+				join(room, player)
+			end
 		end)
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
+		unseat(player)
 		leave(player)
-		lastTrigger[player] = nil
+		lastTouch[player] = nil
 	end)
 	print(`[Rooms] {#rooms} game rooms ready`)
+end
+
+-- Takes a player out of any room and chair without moving them (used when a game pulls them in).
+function Rooms.release(player: Player)
+	unseat(player)
+	leave(player)
 end
 
 -- The room that has been waiting longest with enough players, or nil if none is ready.
@@ -125,10 +200,12 @@ function Rooms.pick(): Room?
 	return best
 end
 
--- Hands over a room's players and empties it, so people can start queuing for the next game.
+-- Hands over a room's players (standing them up out of their chairs) and empties it, so people can
+-- start queuing for the next game.
 function Rooms.take(room: Room): { Player }
 	local taken = table.clone(room.members)
 	for _, player in taken do
+		unseat(player)
 		roomOf[player] = nil
 		player:SetAttribute("Room", nil)
 	end

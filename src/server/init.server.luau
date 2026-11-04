@@ -157,6 +157,7 @@ local function playRound(room: Rooms.Room)
 			table.insert(participants, player)
 			alive[player] = true
 			local spawnAt = stage.spawns[(#participants - 1) % #stage.spawns + 1]
+			Rooms.release(player) -- out of any waiting-room chair first
 			player.Character:PivotTo(spawnAt)
 			Remotes.fireAll("Teleport", { position = spawnAt.Position, color = player:GetAttribute("Color") })
 			table.insert(connections, humanoid.Died:Connect(function()

@@ -180,12 +180,12 @@ end
 -- Mezzanine: balconies with guest-room doors, reached by two marble staircases ---------
 
 local STAIR_RUN = 2
-local BALCONY_WIDTH = 12
+local BALCONY_WIDTH = 16 -- wide enough to walk past the room pads without stepping on one
 local STAIR_WIDTH = 10
 
--- Where the staircases sit front-to-back: near the entrance, facing into the lobby.
+-- Where the staircases sit front-to-back: flush against the front wall, so there's no gap beside them.
 local function stairZ(ctx): number
-	return ctx.D / 2 - 10
+	return ctx.D / 2 - STAIR_WIDTH / 2
 end
 
 -- A grand staircase on each side. It starts out on the lobby floor (facing the middle of the room,
@@ -232,35 +232,128 @@ local function buildStairs(ctx, side: number)
 	end
 end
 
--- A game room's door sign (its level and queue count, kept up to date by Rooms.luau) plus the
--- invisible zone in front of the door that carries the "join" prompt.
-local function buildRoomEntry(ctx, wall: string, along: number, number: number, levelName: string)
+-- A game room: the door, a glowing pad on the floor in front of it with floating text, and the
+-- waiting room behind the wall with rows of chairs (Rooms.luau seats people there). The pad sits
+-- against the wall, so the rest of the balcony is free to walk along without stepping on it.
+local LEVEL_GLOW = { BombHotel = Color3.fromRGB(255, 150, 60), SharkSurvival = Color3.fromRGB(90, 180, 255) }
+local ROOM_DEPTH = 22 -- how far the waiting room goes back behind the wall
+local ROOM_WIDTH = 14 -- along the wall
+local SEAT_ROWS, SEATS_PER_ROW = 4, 8
+
+local function buildRoomEntry(ctx, side: number, z: number, number: number, levelName: string)
+	local model, decor, at, MZ, W = ctx.model, ctx.decor, ctx.at, ctx.MZ, ctx.W
 	local title = levelName
 	for _, def in Config.Levels do
 		if def.name == levelName then
 			title = def.title
 		end
 	end
+	local glow = LEVEL_GLOW[levelName] or L.Brass
+	local wallX = side * W / 2
 
-	local label: BasePart
-	ctx.wallItem(wall, along, ctx.MZ + 10.9, 0.3, function(item)
-		box(item, 0, 0, 0.1, 7, 2, 0.4, L.PanelDark, M.Wood, DECOR)
-		box(item, 0, 0, 0.32, 6.6, 1.6, 0.06, L.Brass, M.Metal, DECOR)
-		label = Craft.label(item, Vector3.new(0, 0, 0.4), 6.2, 1.4, title, L.PanelDark, Enum.Font.GothamBold)
-	end)
+	-- Glowing pad on the floor in front of the door.
+	local padCenter = at(wallX - side * 1.9, MZ + 0.06, z)
+	local pad = box(model, padCenter.X, padCenter.Y, padCenter.Z, 3.2, 0.12, 6, glow, M.Neon, { CanCollide = false, CanQuery = false, Name = `Room{number}Pad` })
+	pad.Transparency = 0.35
+	local padLight = Instance.new("PointLight")
+	padLight.Color = glow
+	padLight.Range = 10
+	padLight.Brightness = 0.8
+	padLight.Parent = pad
+	for _, dz in { -3.3, 3.3 } do -- brass posts marking the pad's corridor corners
+		local post = at(wallX - side * 3.6, MZ + 0.7, z + dz)
+		Craft.cylinder(decor, post, 1.4, 0.35, "Y", L.Brass, M.Metal, DECOR)
+		Craft.ball(decor, post + Vector3.new(0, 0.8, 0), 0.5, L.Brass, M.Metal, DECOR)
+	end
 
-	local zone = Instance.new("Part")
-	zone.Name = `Room{number}Entry`
-	zone.Size = Vector3.new(5.5, 8.4, 3)
-	zone.CFrame = ctx.wall(wall, along, ctx.MZ + 4.2, 1.8)
-	zone.Anchored = true
-	zone.Transparency = 1
-	zone.CanCollide = false
-	zone.CanQuery = false
-	zone.CanTouch = false
-	zone.Parent = ctx.model
+	-- Text floating over the pad.
+	local textSpot = box(model, padCenter.X, MZ + 6.5, padCenter.Z, 0.2, 0.2, 0.2, Color3.new(), nil, INVISIBLE)
+	textSpot.CanCollide = false
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.fromOffset(230, 70)
+	billboard.MaxDistance = 45
+	billboard.Parent = textSpot
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.FredokaOne
+	label.TextScaled = true
+	label.TextColor3 = glow
+	label.TextStrokeTransparency = 0.2
+	label.Text = `Room {number}\n{title}`
+	label.Parent = billboard
 
-	table.insert(ctx.rooms, { number = number, level = levelName, title = title, zone = zone, label = label })
+	-- The waiting room behind the wall.
+	local inner = side * (W / 2 + 4) -- just past the lobby's outer wall
+	local center = at(inner + side * ROOM_DEPTH / 2, MZ, z)
+	box(model, center.X, center.Y - 0.5, center.Z, ROOM_DEPTH, 1, ROOM_WIDTH, L.PanelDark, M.Wood)
+	box(decor, center.X, center.Y + 0.05, center.Z, ROOM_DEPTH - 1, 0.1, ROOM_WIDTH - 1, L.Velvet, M.Carpet, DECOR)
+	box(model, center.X, center.Y + 10.5, center.Z, ROOM_DEPTH, 1, ROOM_WIDTH, L.Ceiling, M.Foam)
+	for _, dz in { -1, 1 } do
+		box(model, center.X, center.Y + 5, center.Z + dz * (ROOM_WIDTH / 2 + 0.5), ROOM_DEPTH, 10, 1, L.Panel, M.Wood)
+	end
+	for _, dx in { -1, 1 } do
+		box(model, center.X + dx * (ROOM_DEPTH / 2 + 0.5), center.Y + 5, center.Z, 1, 10, ROOM_WIDTH, L.Panel, M.Wood)
+	end
+	local lamp = box(decor, center.X, center.Y + 9.7, center.Z, 2, 0.3, 2, L.Cream, M.Neon, DECOR)
+	local roomLight = Instance.new("PointLight")
+	roomLight.Color = Color3.fromRGB(255, 210, 160)
+	roomLight.Range = 22
+	roomLight.Brightness = 1
+	roomLight.Parent = lamp
+
+	-- A screen on the far wall showing the level and who's waiting.
+	local farX = center.X + side * (ROOM_DEPTH / 2 - 0.2)
+	local screenAt = Vector3.new(farX, center.Y + 5.5, center.Z)
+	local screen = Craft.block(decor, CFrame.lookAt(screenAt, screenAt - Vector3.new(side, 0, 0)), Vector3.new(10, 5, 0.2), Color3.fromRGB(20, 20, 26), M.Plastic, DECOR)
+	local screenGui = Instance.new("SurfaceGui")
+	screenGui.Face = Enum.NormalId.Front
+	screenGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	screenGui.PixelsPerStud = 40
+	screenGui.Parent = screen
+	local screenLabel = Instance.new("TextLabel")
+	screenLabel.BackgroundTransparency = 1
+	screenLabel.Size = UDim2.fromScale(1, 1)
+	screenLabel.Font = Enum.Font.FredokaOne
+	screenLabel.TextScaled = true
+	screenLabel.TextColor3 = glow
+	screenLabel.Text = title
+	screenLabel.Parent = screenGui
+
+	-- Rows of chairs facing the screen.
+	local seats = {}
+	for row = 1, SEAT_ROWS do
+		local x = ctx.O.X + inner + side * (2.5 + row * 4)
+		for i = 1, SEATS_PER_ROW do
+			local seatZ = center.Z - (SEATS_PER_ROW - 1) * 0.8 + (i - 1) * 1.6
+			local spot = Vector3.new(x, center.Y + 1.1, seatZ)
+			local facing = CFrame.lookAt(spot, spot + Vector3.new(side, 0, 0))
+			local seat = Instance.new("Seat")
+			seat.Name = "WaitSeat"
+			seat.Size = Vector3.new(1.4, 0.4, 1.4)
+			seat.CFrame = facing
+			seat.Anchored = true
+			seat.Color = L.Velvet
+			seat.Material = M.Felt
+			seat.TopSurface = Enum.SurfaceType.Smooth
+			seat.Parent = model
+			Craft.block(decor, facing * CFrame.new(0, 0.7, 0.75), Vector3.new(1.4, 1.6, 0.2), L.Velvet, M.Felt, DECOR)
+			Craft.block(decor, facing * CFrame.new(0, -0.6, 0), Vector3.new(0.3, 0.8, 0.3), L.Brass, M.Metal, DECOR)
+			table.insert(seats, seat)
+		end
+	end
+
+	table.insert(ctx.rooms, {
+		number = number,
+		level = levelName,
+		title = title,
+		pad = pad,
+		label = label,
+		screenLabel = screenLabel,
+		seats = seats,
+		-- where you're put back when you stand up: on the balcony, clear of the pad, facing the lobby
+		exit = CFrame.lookAt(at(wallX - side * 8, MZ + 3, z), at(0, MZ + 3, z)),
+	})
 end
 
 local function buildMezzanine(ctx)
@@ -279,24 +372,23 @@ local function buildMezzanine(ctx)
 		-- Floor, runner and the carved fascia you see from the lobby.
 		local floor = at(x, MZ - 0.75, zMid)
 		box(model, floor.X, floor.Y, floor.Z, BALCONY_WIDTH, 1.5, length, L.Panel, M.Wood)
-		Props.rug(decor, at(x + side * 0.5, MZ, zMid), 8, length - 2, L.Velvet, L.Brass)
+		Props.rug(decor, at(edge + side * 6.5, MZ, zMid), 9, length - 2, L.Velvet, L.Brass) -- runner down the walkway
 		local band = at(edge - side * 0.1, MZ - 1.2, zMid)
 		box(decor, band.X, band.Y, band.Z, 0.3, 2.4, length, L.Cream, M.Foam, DECOR)
 		local trim = at(edge - side * 0.2, MZ - 2.5, zMid)
 		box(decor, trim.X, trim.Y, trim.Z, 0.2, 0.3, length, L.Brass, M.Metal, DECOR)
-		for z = zFront - 4, zBack + 4, -12 do
-			local corbel = at(edge - side * 0.3, MZ - 3.1, z)
-			box(decor, corbel.X, corbel.Y, corbel.Z, 0.8, 3.2, 1.2, L.Cream, M.Foam, DECOR)
-			Craft.ball(decor, corbel + Vector3.new(-side * 0.1, -1.9, 0), 0.9, L.Brass, M.Metal, DECOR)
-		end
-		for _, z in { gapBack - 4, zMid, zBack + 6 } do
-			Props.pillar(decor, at(edge - side * 1.9, 0, z), MZ - 1.5)
+		-- Pillars in an even row, tucked under the balcony so they hold it up without sticking out.
+		for _, z in { -32, -4, 24 } do
+			Props.pillar(decor, at(edge + side * 2.8, 0, z), MZ - 1.5)
 		end
 
 		-- Balustrade: brass balusters with a mahogany rail, plus an invisible rail so nobody tumbles.
 		-- It's built in two runs, leaving an opening where the staircase arrives.
 		for _, run in { { zBack, gapBack }, { gapFront, zFront } } do
 			local from, to = run[1], run[2]
+			if to - from < 1 then
+				continue -- the stairs reach the front wall, so there's no rail on that side
+			end
 			local runLength, runMid = to - from, (from + to) / 2
 			local rail = at(edge + side * 0.3, MZ + 3.1, runMid)
 			box(decor, rail.X, rail.Y, rail.Z, 0.7, 0.4, runLength, L.Panel, M.Wood)
@@ -320,16 +412,17 @@ local function buildMezzanine(ctx)
 			return if side == -1 then -z else z
 		end
 		wainscot(ctx, wall, alongOf(zMid), MZ, length)
+		-- Five guest rooms, evenly spaced from the back wall to just before the stairs.
 		for i = 0, 4 do
-			local z = -2 - i * 8
+			local z = -34 + i * 14
 			local number = if side == -1 then 201 + i * 2 else 202 + i * 2
 			Props.roomDoor(decor, ctx.wall(wall, alongOf(z), MZ, 0), number)
 			local levelName = Config.Rooms.levels[number]
 			if levelName then
-				buildRoomEntry(ctx, wall, alongOf(z), number, levelName)
+				buildRoomEntry(ctx, side, z, number, levelName)
 			end
-			if i == 1 or i == 3 then -- a lamp for every other gap between doors, so the corridor is mostly shadow
-				Props.sconce(decor, ctx.wall(wall, alongOf(z - 4), MZ + 7, 0.3))
+			if i < 4 then -- a lamp between each pair of doors
+				Props.sconce(decor, ctx.wall(wall, alongOf(z + 7), MZ + 7, 0.3))
 			end
 		end
 		for _, z in { zFront - 8, zBack + 8 } do

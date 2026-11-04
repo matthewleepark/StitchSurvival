@@ -3,6 +3,21 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-03 (late) — Matthew (with Claude)
+Same branch. **Rosie, this reworks a lot of your lobby and `Rooms.luau`, please review:**
+- **Joining a room is now a pad, not hold-E.** A glowing pad (orange = Bomb Hotel, blue = Shark Survival) sits in
+  front of each door with floating text ("Room 201: Bomb Hotel, 1/32 waiting - step in to join"). Stepping on it
+  teleports you into that room's **waiting room** behind the wall and seats you in the next free chair (4 rows of
+  8, facing a screen that shows the level and the count). Jump to stand up: you leave the queue and are put back
+  on the balcony. `Rooms.take` stands everyone up before the round; `Rooms.release` does the same for admin starts.
+- **Balconies 12 -> 16 studs wide** so you can walk past the pads; runner rug moved to the walkway.
+- **Doors** evenly spaced (every 14 studs, -34 to 22) with a pale frame, brass trim, raised panels, a glowing number
+  plate and a light, so they stand out from the wall (`HotelProps.roomDoor`).
+- **Pillars** under the balconies: three evenly spaced, tucked under the balcony edge; the corbels are gone.
+- **Stairs** pushed flush against the front wall (no gap beside them).
+- **Checked:** luau-lsp clean; playtest: stepping on Room 201's pad seated me in its waiting room and the text
+  read 1/32; jumping out of Room 202 put me back on the balcony walkway; no new console errors.
+
 ## 2026-11-03 (night) — Matthew (with Claude)
 Same branch.
 - **Dimmer lighting** (`Config.Mood`): moonlight 0.4, exposure -0.15, lamps 1.2x, fill lights 0.22. A step darker

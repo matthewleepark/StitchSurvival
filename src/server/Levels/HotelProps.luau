@@ -305,13 +305,21 @@ end
 
 -- A numbered guest room door. Place with a wall's CFrame; the floor is y = 0.
 function Props.roomDoor(parent: Instance, cframe: CFrame, number: number)
+	-- A guest-room door that stands out from the wall: a deep brass-trimmed frame, a dark door with
+	-- raised panels, a glowing number plate and a little light above.
 	local m = start(`Room{number}`)
-	box(m, 0, 4.7, 0.3, 6.4, 9.4, 0.6, L.PanelDark, M.Wood, DECOR)
-	box(m, 0, 4.2, 0.65, 4.8, 8.4, 0.3, L.Panel, M.Wood, DECOR)
-	box(m, 0, 4.2, 0.82, 3.4, 6.6, 0.1, L.PanelLight, M.Wood, DECOR)
-	orb(m, 1.8, 4.2, 1.0, 0.55, L.Brass, M.Metal, DECOR)
-	box(m, 0, 7.5, 0.85, 2.4, 1, 0.1, L.Brass, M.Metal, DECOR)
-	Craft.label(m, Vector3.new(0, 7.5, 0.93), 2, 0.8, tostring(number), L.PanelDark, Enum.Font.GothamBold)
+	box(m, 0, 5, 0.4, 7.4, 10, 0.8, L.Cream, M.Foam, DECOR) -- pale frame, so the door pops off the dark wall
+	box(m, 0, 5, 0.85, 6.6, 9.6, 0.1, L.Brass, M.Metal, DECOR) -- brass trim
+	box(m, 0, 4.4, 0.95, 5.4, 8.6, 0.25, L.PanelDark, M.Wood, DECOR) -- the door
+	for _, y in { 2.4, 6.2 } do
+		box(m, 0, y, 1.12, 4, 3, 0.1, L.Panel, M.Wood, DECOR) -- raised panels
+	end
+	orb(m, 2, 4.3, 1.2, 0.5, L.Brass, M.Metal, DECOR)
+	local plate = box(m, 0, 9.2, 1.0, 2.6, 0.9, 0.1, Color3.fromRGB(255, 220, 160), M.Neon, DECOR)
+	plate.Transparency = 0.2
+	Craft.label(m, Vector3.new(0, 9.2, 1.08), 2.2, 0.8, tostring(number), L.PanelDark, Enum.Font.GothamBold)
+	local bulb = orb(m, 0, 10.6, 1.0, 0.5, Color3.fromRGB(255, 200, 130), M.Neon, DECOR)
+	addLight(bulb, Color3.fromRGB(255, 200, 130), 9, 0.6)
 	return finish(m, parent, cframe)
 end
 
