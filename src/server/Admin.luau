@@ -20,6 +20,7 @@ local RoundControl = require(script.Parent.RoundControl)
 local Score = require(script.Parent.Score)
 local Util = require(script.Parent.Util)
 local Bombs = require(script.Parent.Levels.Bombs)
+local Gear = require(script.Parent.Gear)
 
 local Admin = {}
 
@@ -61,6 +62,10 @@ end
 local commands = {}
 
 function commands.StartRound(player: Player, levelName: string?)
+	if levelName == "BombHotelChaos" then
+		RoundControl.forceChaos = true
+		levelName = "BombHotel"
+	end
 	RoundControl.forceLevel = if levelName and levelName ~= "Random" then levelName else nil
 	RoundControl.skipIntermission = true
 	if RoundControl.levelName then
@@ -141,8 +146,8 @@ function commands.Stickers(player: Player)
 end
 
 function commands.MaxGear(player: Player)
-	local best = Config.Gear[#Config.Gear]
-	player:SetAttribute("Gear", best.name)
+	local best = Config.Gear[#Config.Gear - 1] -- the Legendary (the last one is the secret)
+	Gear.give(player, best.name)
 	tell(player, `Gear set to {best.name}`)
 end
 

@@ -58,7 +58,7 @@ local function release(launch: boolean?)
 		creak = nil
 	end
 	if slowedHumanoid then
-		slowedHumanoid.WalkSpeed = Config.Doll.WalkSpeed
+		slowedHumanoid.WalkSpeed = slowedHumanoid:GetAttribute("BaseWalkSpeed") or Config.Doll.WalkSpeed
 		slowedHumanoid = nil
 	end
 

@@ -14,6 +14,11 @@ local requestRoll = Instance.new("RemoteEvent")
 requestRoll.Name = "RequestRoll"
 requestRoll.Parent = folder
 
+-- Equip an item you own from the gear panel.
+local equipGear = Instance.new("RemoteEvent")
+equipGear.Name = "EquipGear"
+equipGear.Parent = folder
+
 -- Admin panel buttons. The server checks the sender is an admin before doing anything.
 local adminCommand = Instance.new("RemoteEvent")
 adminCommand.Name = "AdminCommand"
@@ -23,6 +28,7 @@ folder.Parent = ReplicatedStorage
 
 local Remotes = {
 	RequestRoll = requestRoll,
+	EquipGear = equipGear,
 	AdminCommand = adminCommand,
 }
 

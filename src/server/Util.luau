@@ -1,7 +1,10 @@
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local SoundBank = require(ReplicatedStorage.Shared.SoundBank)
+local Remotes = require(script.Parent.Remotes)
 
 local Util = {}
 
@@ -89,15 +92,53 @@ function Util.weightedPick(list)
 	return list[#list]
 end
 
--- Pops a player instantly, unless they're in admin god mode. Returns whether it worked.
--- (Normal damage from TakeDamage is already blocked in god mode by an invisible ForceField.)
-function Util.kill(humanoid: Humanoid): boolean
+-- One passive of the gear this player has equipped (see Config.Gear), or nil.
+function Util.passive(player: Player, key: string): any
+	return Config.passive(player:GetAttribute("Gear") :: string?, key)
+end
+
+-- The "Survive one pop per round" passive: if this player has it and hasn't used it yet this round,
+-- they're saved at half health instead. Returns true if it saved them.
+local function secondChance(humanoid: Humanoid): boolean
+	local player = Players:GetPlayerFromCharacter(humanoid.Parent)
+	if not player or not Util.passive(player, "secondChance") or player:GetAttribute("ChanceUsed") then
+		return false
+	end
+	player:SetAttribute("ChanceUsed", true)
+	humanoid.Health = humanoid.MaxHealth / 2
+	Remotes.fireAll("Announce", { text = `{player.DisplayName} used their second chance!`, color = Config.RarityColors.Legendary })
+	return true
+end
+
+local function isGod(humanoid: Humanoid): boolean
 	local character = humanoid.Parent
-	if character and character:GetAttribute("God") then
+	return character ~= nil and (character:GetAttribute("God") == true or character:FindFirstChildOfClass("ForceField") ~= nil)
+end
+
+-- Pops a player instantly, unless they're in admin god mode or their gear gives them a second chance.
+-- Returns whether they were popped.
+function Util.kill(humanoid: Humanoid): boolean
+	if isGod(humanoid) or humanoid.Health <= 0 or secondChance(humanoid) then
 		return false
 	end
 	humanoid.Health = 0
 	return true
+end
+
+-- Hurts a player. `armored` damage (bombs, fire) is reduced by the bombArmor passive, and a hit that
+-- would pop them can be saved by a second chance. God mode takes no damage.
+function Util.damage(humanoid: Humanoid, amount: number, armored: boolean?)
+	if isGod(humanoid) or humanoid.Health <= 0 then
+		return
+	end
+	local player = Players:GetPlayerFromCharacter(humanoid.Parent)
+	if armored and player then
+		amount *= 1 - (Util.passive(player, "bombArmor") or 0)
+	end
+	if humanoid.Health - amount <= 0 and secondChance(humanoid) then
+		return
+	end
+	humanoid:TakeDamage(amount)
 end
 
 -- Drops the up/down part of a direction (for knockbacks along the ground).

@@ -7,7 +7,6 @@ local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Audio = require(script.Parent.Audio)
-local TitleScreen = require(script.Parent.TitleScreen)
 
 local Colors = Config.Colors
 local FONT = Enum.Font.FredokaOne
@@ -249,92 +248,32 @@ local function buildOxygen()
 	end)
 end
 
--- Gear card + roll popup ------------------------------------------------------------------
-
-local popup: Frame
-local popupTitle: TextLabel
-local popupSubtitle: TextLabel
-local popupToken = 0
-
-local function showPopup(title: string, subtitle: string, color: Color3)
-	popupToken += 1
-	local token = popupToken
-	popupTitle.Text = title
-	popupTitle.TextColor3 = color
-	popupSubtitle.Text = subtitle
-	popup.Visible = true
-	local scale = popup:FindFirstChildOfClass("UIScale") :: UIScale
-	scale.Scale = 0
-	tween(scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
-	task.delay(2.6, function()
-		if popupToken == token then
-			popup.Visible = false
-		end
-	end)
-end
+-- Gear card: what you have equipped and its passives -------------------------------------------
 
 local function buildGear()
 	local card = paper({
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -16, 1, -16),
-		Size = UDim2.fromOffset(230, 116),
+		Size = UDim2.fromOffset(250, 120),
 	})
-	local gearLabel = text({ Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 46), TextSize = 18, TextWrapped = true }, card)
+	local nameLabel = text({ Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 30), TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd }, card)
+	local passiveLabel = text({ Position = UDim2.fromOffset(10, 38), Size = UDim2.new(1, -20, 0, 48), TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = Color3.fromRGB(100, 80, 64) }, card)
+	text({ Position = UDim2.fromOffset(10, 90), Size = UDim2.new(1, -20, 0, 22), TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Text = "Roll for more at the gear machine!", TextColor3 = Colors.Felt }, card)
 
 	local function updateGear()
 		local gear = Config.getGear(player:GetAttribute("Gear"))
 		if gear then
-			gearLabel.Text = `{gear.name}\n{gear.oxygen}s of air`
-			gearLabel.TextColor3 = Config.RarityColors[gear.rarity]
+			nameLabel.Text = `{gear.icon} {gear.name}`
+			nameLabel.TextColor3 = Config.RarityColors[gear.rarity]
+			passiveLabel.Text = table.concat(Config.describePassives(gear), "\n")
 		else
-			gearLabel.Text = `No scuba gear\n{Config.DefaultOxygen}s of air`
-			gearLabel.TextColor3 = Colors.Ink
+			nameLabel.Text = "No gear yet"
+			nameLabel.TextColor3 = Colors.Ink
+			passiveLabel.Text = `{Config.DefaultOxygen}s of air underwater`
 		end
 	end
 	player:GetAttributeChangedSignal("Gear"):Connect(updateGear)
 	updateGear()
-
-	local button = new("TextButton", {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -10),
-		Size = UDim2.new(1, -20, 0, 46),
-		BackgroundColor3 = Colors.Felt,
-		Font = FONT,
-		TextSize = 20,
-		TextColor3 = Colors.Paper,
-		Text = `Roll Gear  ({Config.RollCost} Stickers)`,
-	}, card)
-	round(button, 10)
-	outline(button, 2)
-	TitleScreen.wireButton(button)
-	button.Activated:Connect(function()
-		Audio.play("GearRoll", nil, "Interface")
-		local remotes = ReplicatedStorage:WaitForChild("Remotes")
-		remotes.RequestRoll:FireServer()
-	end)
-
-	popup = paper({
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.42),
-		Size = UDim2.fromOffset(340, 140),
-		Visible = false,
-		ZIndex = 5,
-	})
-	new("UIScale", {}, popup)
-	popupTitle = text({ Size = UDim2.new(1, 0, 0.55, 0), TextSize = 30, ZIndex = 6 }, popup)
-	popupSubtitle = text({ Position = UDim2.fromScale(0, 0.5), Size = UDim2.new(1, 0, 0.45, 0), TextSize = 18, ZIndex = 6 }, popup)
-end
-
-local function onGearResult(result)
-	if not result then
-		showPopup("Not enough Stickers", "Survive levels to earn more!", Colors.Ink)
-		return
-	end
-	local subtitle = if result.kept then `{result.rarity}! {result.oxygen}s of air` else `{result.rarity}. You kept your better gear`
-	showPopup(result.name, subtitle, Config.RarityColors[result.rarity])
-	if result.rarity == "Legendary" or result.rarity == "Epic" then
-		Audio.play("Fanfare", nil, "Interface")
-	end
 end
 
 -- Countdown stamp + level banner ------------------------------------------------------------
@@ -370,6 +309,8 @@ local function buildBigText()
 	new("UIStroke", { Thickness = 3, Color = Colors.Ink }, bannerLabel)
 end
 
+local stampToken = 0
+
 local function showCountdown(value: string)
 	local isGo = value == "GO!"
 	Audio.play(if isGo then "Go" else "Countdown", nil, "Interface")
@@ -381,20 +322,39 @@ local function showCountdown(value: string)
 	local scale = stamp:FindFirstChildOfClass("UIScale") :: UIScale
 	scale.Scale = 2.2
 	tween(scale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+	-- Fade out, then hide it completely (the outline doesn't fade with the text, which used to leave a
+	-- dark "GO!" stuck on screen). A newer stamp cancels this one.
+	stampToken += 1
+	local token = stampToken
 	task.delay(0.75, function()
-		if stamp.Text == value then
+		if stampToken == token then
 			tween(stamp, 0.2, { TextTransparency = 1 })
+			task.wait(0.25)
+			if stampToken == token then
+				stamp.Visible = false
+			end
 		end
 	end)
 end
 
-local function showLevelIntro(title: string)
+local bannerToken = 0
+local function showLevelIntro(title: string, color: Color3?)
+	bannerToken += 1
+	local token = bannerToken
 	bannerLabel.Text = string.upper(title)
+	banner.BackgroundColor3 = color or Colors.Felt
 	banner.Visible = true
 	banner.Position = UDim2.fromScale(-0.5, 0.25)
 	tween(banner, 0.45, { Position = UDim2.fromScale(0.5, 0.25) }, Enum.EasingStyle.Back)
 	task.delay(2.2, function()
+		if bannerToken ~= token then
+			return -- a newer banner took over
+		end
 		tween(banner, 0.35, { Position = UDim2.fromScale(1.5, 0.25) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		task.wait(0.4)
+		if bannerToken == token then
+			banner.Visible = false
+		end
 	end)
 end
 
@@ -487,8 +447,9 @@ function Hud.handle(kind: string, data)
 		announce(data.text, data.color)
 	elseif kind == "Results" then
 		showResults(data)
-	elseif kind == "GearResult" then
-		onGearResult(data)
+	elseif kind == "Chaos" then
+		showLevelIntro(`CHAOS MODE!  x{data.multiplier} POINTS`, Color3.fromRGB(150, 20, 30))
+		announce("Sharks are coming through the walls!", Color3.fromRGB(220, 40, 40))
 	elseif kind == "Pop" and data.userId == player.UserId then
 		-- You grabbed a bubble: the tally counter clicks over.
 		Audio.play("TallyClick", nil, "Interface")

@@ -183,9 +183,10 @@ local STAIR_RUN = 2
 local BALCONY_WIDTH = 16 -- wide enough to walk past the room pads without stepping on one
 local STAIR_WIDTH = 10
 
--- Where the staircases sit front-to-back: flush against the front wall, so there's no gap beside them.
+-- Where the staircases sit front-to-back: right up against the front wall's paneling (which sticks
+-- out about a stud), so there's no gap beside them and nothing pokes through.
 local function stairZ(ctx): number
-	return ctx.D / 2 - STAIR_WIDTH / 2
+	return ctx.D / 2 - 1.2 - STAIR_WIDTH / 2
 end
 
 -- A grand staircase on each side. It starts out on the lobby floor (facing the middle of the room,
@@ -205,10 +206,8 @@ local function buildStairs(ctx, side: number)
 		box(model, p.X, p.Y, p.Z, STAIR_RUN, i, STAIR_WIDTH, L.Marble, MARBLE)
 		local tread = at(x, i + 0.05, z)
 		box(decor, tread.X, tread.Y, tread.Z, STAIR_RUN - 0.2, 0.1, 7, L.Velvet, M.Felt, DECOR)
-		if i % 2 == 0 then -- balusters on both sides, every other step
-			for _, edge in { -1, 1 } do
-				Craft.cylinder(decor, at(x, i + 1.85, z + edge * (STAIR_WIDTH / 2 - 0.3)), 3.6, 0.3, "Y", L.Brass, M.Metal, DECOR)
-			end
+		if i % 2 == 0 then -- balusters along the open side, every other step
+			Craft.cylinder(decor, at(x, i + 1.85, z - (STAIR_WIDTH / 2 - 0.3)), 3.6, 0.3, "Y", L.Brass, M.Metal, DECOR)
 		end
 	end
 
@@ -217,19 +216,27 @@ local function buildStairs(ctx, side: number)
 	local ramp = Craft.block(model, CFrame.lookAt((bottom + top) / 2, top) * CFrame.new(0, -0.5, 0), Vector3.new(STAIR_WIDTH, 1, (top - bottom).Magnitude), Color3.new(), nil, INVISIBLE)
 	ramp.Name = "StairRamp"
 
-	-- Sloped handrails on both sides, with a big newel post and brass ball at the bottom.
-	for _, edge in { -1, 1 } do
-		local railZ = z + edge * (STAIR_WIDTH / 2 - 0.3)
-		local lowRail = at(xBottom, 4.2, railZ)
-		local highRail = at(xTop, MZ + 3.2, railZ)
-		for _, drop in { 0, 2.4 } do
-			local a, b = lowRail - Vector3.new(0, drop, 0), highRail - Vector3.new(0, drop, 0)
-			Craft.block(decor, CFrame.lookAt((a + b) / 2, b), Vector3.new(0.6, if drop == 0 then 0.5 else 0.25, (b - a).Magnitude), L.Panel, M.Wood, DECOR)
-		end
-		local newel = at(xBottom - side * 0.6, 3, railZ)
-		box(decor, newel.X, newel.Y, newel.Z, 1.2, 6, 1.2, L.Panel, M.Wood, DECOR)
-		Craft.ball(decor, newel + Vector3.new(0, 3.4, 0), 1.4, L.Brass, M.Metal, DECOR)
+	-- Open side (facing the lobby): a solid handrail on the balusters, a big newel post at the bottom,
+	-- and an invisible guard so nobody slips off the side.
+	local openZ = z - (STAIR_WIDTH / 2 - 0.3)
+	local lowRail = at(xBottom, 4.2, openZ)
+	local highRail = at(xTop, MZ + 3.2, openZ)
+	for _, drop in { 0, 2.4 } do
+		local a, b = lowRail - Vector3.new(0, drop, 0), highRail - Vector3.new(0, drop, 0)
+		Craft.block(model, CFrame.lookAt((a + b) / 2, b), Vector3.new(0.6, if drop == 0 then 0.5 else 0.25, (b - a).Magnitude), L.Panel, M.Wood)
 	end
+	local guardLow, guardHigh = at(xBottom, 3, openZ), at(xTop, MZ + 2.5, openZ)
+	Craft.block(model, CFrame.lookAt((guardLow + guardHigh) / 2, guardHigh), Vector3.new(0.4, 6, (guardHigh - guardLow).Magnitude), Color3.new(), nil, INVISIBLE)
+	local newel = at(xBottom - side * 0.6, 3, openZ)
+	box(model, newel.X, newel.Y, newel.Z, 1.2, 6, 1.2, L.Panel, M.Wood)
+	Craft.ball(decor, newel + Vector3.new(0, 3.4, 0), 1.4, L.Brass, M.Metal, DECOR)
+
+	-- Wall side: one clean wooden board running up along the wall, instead of a second railing.
+	local wallZ = z + STAIR_WIDTH / 2 + 0.15
+	local boardLow, boardHigh = at(xBottom - side * 1, 0.6, wallZ), at(xTop, steps + 1.1, wallZ)
+	Craft.block(model, CFrame.lookAt((boardLow + boardHigh) / 2, boardHigh), Vector3.new(0.3, 1.4, (boardHigh - boardLow).Magnitude), L.Panel, M.Wood)
+	local trimLow, trimHigh = boardLow + Vector3.new(0, 0.75, 0), boardHigh + Vector3.new(0, 0.75, 0)
+	Craft.block(decor, CFrame.lookAt((trimLow + trimHigh) / 2, trimHigh), Vector3.new(0.35, 0.15, (trimHigh - trimLow).Magnitude), L.Brass, M.Metal, DECOR)
 end
 
 -- A game room: the door, a glowing pad on the floor in front of it with floating text, and the

@@ -6,6 +6,8 @@ local RoundControl = {
 	skipIntermission = false,
 	-- Set to a level name (e.g. "BombHotel") to make the next round use that level.
 	forceLevel = nil :: string?,
+	-- Set to true to make the next Bomb Hotel round a Chaos Mode round.
+	forceChaos = false,
 	-- Set to true to end the current round right away (survivors still win).
 	endRound = false,
 

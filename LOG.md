@@ -3,6 +3,25 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-04 — Matthew (with Claude)
+Same branch.
+- **Gear overhaul** (`Config.Gear`, `server/Gear.luau`, new `client/GearPanel.luau`): 10 items with passives
+  (air, speed, jump, bombArmor, magnet, scoreBonus, secondChance) incl. a 0.1% secret (Shark Tooth Charm, shown
+  as ??? until owned). Walking up to the gear machine opens a panel listing every item (icon, rarity, chance,
+  passives) with a ROLL button; a reel spins and lands on the server's pick. Rolled items go into a collection
+  (`OwnedGear`), and you can equip any owned item. The HUD roll button is gone; the HUD card shows what's equipped.
+  Passives are applied in `Util.damage` / `Util.kill` (armor, second chance), `Score.add` (bonus, round
+  multiplier), a magnet loop in `Score`, `Gear.apply` (speed/jump), and Shark Survival air.
+- **Bomb Hotel CHAOS MODE** (`Config.Chaos`, new `Levels/FlyingShark.luau`): 25% of rounds. Double points, and
+  battle-scarred sharks burst through the outer walls (red crack warning first), charge at a player and chomp.
+  Bombs also drop faster as the round goes on. Admin panel has "Start now: Bomb Hotel CHAOS".
+- **Stairs:** solid open-side handrail plus an invisible guard; the wall side is now one clean board; stairs
+  sit just off the wall paneling.
+- **Stuck "GO!" fixed** (`Hud.luau`): the text faded but its outline didn't; the stamp now hides fully. The level
+  banner also hides after sliding out and can't be cut short by an older timer.
+- **Checked:** luau-lsp clean; playtest: rolled a Tin Can Helmet (reel result shown, owned + equipped, 10 items
+  listed), chaos round showed the banner, a wall crack and a shark, no countdown text left on screen, no new errors.
+
 ## 2026-11-03 (bus) — Matthew (with Claude)
 Same branch.
 - **Normal height:** `Config.Doll.Scale` 1, `WalkSpeed` 16, `JumpHeight` 7.2 (Roblox defaults). The doll keeps a

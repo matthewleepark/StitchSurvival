@@ -20,9 +20,20 @@ Config.Gravity = 196.2
 -- Bomb Hotel: every 15 seconds a bomb is dropped at a random spot inside the hotel. Its timer
 -- ticks twice a second, doubles speed for the last 5 seconds, then it explodes: everything
 -- within 25 studs (floor blocks, pillars, ramps) is ripped loose and thrown outward.
-Config.PlantedBombInterval = 15
+Config.PlantedBombInterval = 15 -- at the start; it shortens to half this by the end of the round
 Config.PlantedBombFuse = 12
 Config.PlantedBombBlastRadius = 25
+
+-- Bomb Hotel CHAOS MODE: sometimes a round turns chaotic. Points are doubled, but battle-scarred
+-- sharks burst in through the hotel's outer walls (a red crack warns where) and chomp anyone in reach.
+Config.Chaos = {
+	chance = 0.25, -- chance a Bomb Hotel round is chaotic
+	scoreMultiplier = 2,
+	firstShark = 8, -- seconds into the round before the first shark
+	sharkEvery = { 5, 9 }, -- seconds between sharks
+	warning = 1.5, -- seconds the red crack glows before a shark bursts through
+	sharkSpeed = 38, -- studs per second
+}
 
 -- Shark Survival: the shark switches from patrolling to hunting when a player is this close.
 Config.SharkHuntRadius = 45
@@ -229,18 +240,43 @@ Config.Doll = {
 -- Below this fraction of health the heartbeat starts and the world sounds muffled.
 Config.LowHealth = 0.4
 
--- Scuba gear (the RNG) ----------------------------------------------------------
--- Players roll at the gear machine in the lobby. More oxygen = longer underwater.
--- You always keep your best gear, so a bad roll never makes you worse.
+-- Gear (the RNG) --------------------------------------------------------------------
+-- Walk up to the gear machine in the lobby to open the gear panel: it lists every item, its rarity,
+-- its chance and its passives, and has the ROLL button (a spinning reel picks the item). Everything
+-- you roll goes in your collection; equip whichever one you like.
+--
+-- Passives (all optional on an item):
+--   air          seconds you can stay underwater
+--   speed        extra walk speed
+--   jump         extra jump height (studs)
+--   bombArmor    0.2 = bombs and fire hurt 20% less
+--   magnet       pulls in score bubbles from this many studs away
+--   scoreBonus   0.25 = +25% points
+--   secondChance survive one pop (or knockout) per round, at half health
+-- A "secret" item shows up as ??? in the panel until you own it.
 
 Config.DefaultOxygen = 5
 Config.Gear = {
-	{ name = "Paper Snorkel", rarity = "Common", weight = 60, oxygen = 8 },
-	{ name = "Bubble Wrap Suit", rarity = "Uncommon", weight = 25, oxygen = 12 },
-	{ name = "Tin Can Helmet", rarity = "Rare", weight = 10, oxygen = 18 },
-	{ name = "Clockwork Diving Bell", rarity = "Epic", weight = 4, oxygen = 28 },
-	{ name = "Golden Fishbowl", rarity = "Legendary", weight = 1, oxygen = 45 },
+	{ name = "Paper Snorkel", rarity = "Common", weight = 34, icon = "\u{1F93F}", passives = { air = 8 } },
+	{ name = "Felt Sneakers", rarity = "Common", weight = 26, icon = "\u{1F45F}", passives = { speed = 2 } },
+	{ name = "Bubble Wrap Suit", rarity = "Uncommon", weight = 14, icon = "\u{1FAE7}", passives = { air = 12, bombArmor = 0.2 } },
+	{ name = "Spring Shoes", rarity = "Uncommon", weight = 11, icon = "\u{1F998}", passives = { jump = 3, speed = 1 } },
+	{ name = "Tin Can Helmet", rarity = "Rare", weight = 6, icon = "\u{1FA96}", passives = { air = 18, bombArmor = 0.35 } },
+	{ name = "Magnet Mitten", rarity = "Rare", weight = 4, icon = "\u{1F9F2}", passives = { magnet = 10, scoreBonus = 0.1 } },
+	{ name = "Clockwork Diving Bell", rarity = "Epic", weight = 2.4, icon = "\u{1F514}", passives = { air = 28, speed = 2 } },
+	{ name = "Lucky Button", rarity = "Epic", weight = 1.6, icon = "\u{1F340}", passives = { scoreBonus = 0.3, magnet = 6 } },
+	{ name = "Golden Fishbowl", rarity = "Legendary", weight = 0.9, icon = "\u{1F420}", passives = { air = 45, secondChance = true } },
+	{
+		name = "Shark Tooth Charm",
+		rarity = "Secret",
+		weight = 0.1,
+		icon = "\u{1F9B7}",
+		secret = true,
+		passives = { air = 60, speed = 3, jump = 3, bombArmor = 0.5, magnet = 12, scoreBonus = 0.5, secondChance = true },
+	},
 }
+
+Config.RarityOrder = { Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5, Secret = 6 }
 
 Config.RarityColors = {
 	Common = Color3.fromRGB(180, 170, 150),
@@ -248,6 +284,7 @@ Config.RarityColors = {
 	Rare = Color3.fromRGB(80, 150, 230),
 	Epic = Color3.fromRGB(170, 90, 220),
 	Legendary = Color3.fromRGB(250, 190, 40),
+	Secret = Color3.fromRGB(255, 70, 110),
 }
 
 function Config.getGear(name: string?)
@@ -257,6 +294,49 @@ function Config.getGear(name: string?)
 		end
 	end
 	return nil
+end
+
+-- One passive of the gear a player has equipped (by gear name), or nil.
+function Config.passive(gearName: string?, key: string): any
+	local gear = Config.getGear(gearName)
+	return gear and gear.passives[key]
+end
+
+-- The chance of rolling an item, as a percentage.
+function Config.gearChance(gear): number
+	local total = 0
+	for _, entry in Config.Gear do
+		total += entry.weight
+	end
+	return gear.weight / total * 100
+end
+
+-- Plain-English lines describing an item's passives, for the panel and the HUD.
+function Config.describePassives(gear): { string }
+	local p = gear.passives
+	local lines = {}
+	if p.air then
+		table.insert(lines, `{p.air}s of air underwater`)
+	end
+	if p.speed then
+		table.insert(lines, `+{p.speed} walk speed`)
+	end
+	if p.jump then
+		table.insert(lines, `+{p.jump} jump height`)
+	end
+	if p.bombArmor then
+		table.insert(lines, `Bombs and fire hurt {math.floor(p.bombArmor * 100)}% less`)
+	end
+	if p.magnet then
+		table.insert(lines, `Pulls in score bubbles from {p.magnet} studs`)
+	end
+	if p.scoreBonus then
+		table.insert(lines, `+{math.floor(p.scoreBonus * 100)}% points`)
+	end
+	if p.secondChance then
+		table.insert(lines, "Survive one pop per round")
+	end
+	return lines
 end
 
 -- Sounds -----------------------------------------------------------------------
@@ -287,6 +367,8 @@ Config.Sounds = {
 	Countdown = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.7, speed = 1.2 },
 	Go = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.9, speed = 1.8 },
 	GearRoll = { id = "", volume = 0.6 }, -- gumball machine crank
+	ReelTick = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.3, speed = 2.6 }, -- click as each item spins past
+	ReelWin = { id = "", volume = 0.8 }, -- the reel lands on your item
 
 	-- Round flow ---------------------------------------------------------------------
 	MapClear = { id = "", volume = 0.5 }, -- structural clink-clack as the old level is packed away
@@ -321,6 +403,8 @@ Config.Sounds = {
 	WaterRustle = { id = "", volume = 0.25, looped = true, range = 250 }, -- thousands of tissue-paper pieces stirred by a fan
 	SharkMotor = { id = "", volume = 0.6, looped = true, range = 90 }, -- clockwork whir-click-whir (pitched up when it hunts)
 	Breach = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.9, range = 150 }, -- violent RIP-CRUNCH as it breaks the surface
+	SharkRoar = { id = "", volume = 0.9, range = 150 }, -- a deep rumble as a shark bursts through a wall
+	WallCrack = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.8, speed = 0.4, range = 100 }, -- the wall cracking right before
 	Chomp = { id = "", volume = 0.9, range = 120 }, -- blunt CLACK of two thick plywood slabs
 	PlatformSnap = { id = "", volume = 0.8, range = 120 }, -- wooden popsicle stick SNAP
 	PlatformSink = { id = "", volume = 0.6, range = 100 }, -- fizz-muffle / gurgle-glug as it sinks

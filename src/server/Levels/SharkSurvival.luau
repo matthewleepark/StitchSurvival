@@ -265,14 +265,13 @@ local function updateOxygen(stage, dt: number)
 		local head = character and character:FindFirstChild("Head") :: BasePart?
 		local humanoid = Util.aliveHumanoid(player)
 		if head and humanoid and stage.contains(head.Position) then
-			local gear = Config.getGear(player:GetAttribute("Gear"))
-			local maxOxygen = if gear then gear.oxygen else Config.DefaultOxygen
+			local maxOxygen = Util.passive(player, "air") or Config.DefaultOxygen
 			local oxygen = player:GetAttribute("Oxygen") or maxOxygen
 
 			if head.Position.Y < stage.waterTop - 0.3 then
 				oxygen = math.max(0, oxygen - dt)
 				if oxygen <= 0 then
-					humanoid:TakeDamage(DROWN_DAMAGE_PER_SECOND * dt)
+					Util.damage(humanoid, DROWN_DAMAGE_PER_SECOND * dt)
 				end
 			else
 				oxygen = math.min(maxOxygen, oxygen + OXYGEN_REFILL_PER_SECOND * dt)

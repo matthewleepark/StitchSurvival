@@ -142,7 +142,7 @@ function Bombs.ignite(stage, center: Vector3)
 				local now = os.clock()
 				if now - (lastBurn[humanoid] or 0) > 0.6 then
 					lastBurn[humanoid] = now
-					humanoid:TakeDamage(FIRE_DAMAGE)
+					Util.damage(humanoid, FIRE_DAMAGE, true)
 					Score.breakCombo(player)
 					local root = Util.rootPart(player)
 					if root then
@@ -205,7 +205,7 @@ function Bombs.explode(stage, position: Vector3)
 			local offset = root.Position - position
 			local distance = offset.Magnitude
 			if distance < DAMAGE_RADIUS then
-				humanoid:TakeDamage(MAX_DAMAGE * (1 - 0.5 * distance / DAMAGE_RADIUS))
+				Util.damage(humanoid, MAX_DAMAGE * (1 - 0.5 * distance / DAMAGE_RADIUS), true)
 				Score.breakCombo(player)
 				local flat = Util.flatten(offset)
 				local push = (if flat.Magnitude > 0.1 then flat.Unit else Vector3.xAxis) * KNOCKBACK

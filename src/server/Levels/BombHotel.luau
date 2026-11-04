@@ -22,6 +22,10 @@ local Craft = require(script.Parent.Parent.Craft)
 local Score = require(script.Parent.Parent.Score)
 local Util = require(script.Parent.Parent.Util)
 local Bombs = require(script.Parent.Bombs)
+local RoundControl = require(script.Parent.Parent.RoundControl)
+local FlyingShark = require(script.Parent.FlyingShark)
+local Remotes = require(script.Parent.Parent.Remotes)
+local Players = game:GetService("Players")
 
 local Colors = Config.Colors
 local M = Craft.Material
@@ -292,18 +296,47 @@ local function spawnBubbles(stage, ctx)
 	end
 end
 
--- Every 15 seconds, drop a bomb at a random spot anywhere inside the hotel.
+-- Drop a bomb at a random spot anywhere inside the hotel: every 15 seconds at first, getting faster
+-- (down to half that) as the round goes on.
 local function dropBombs(stage, ctx)
 	while ctx.isActive() do
 		local height = math.random(2, stage.roofY - 6)
 		local spot = Util.randomAround(stage.origin, stage.width / 2 - 6, stage.depth / 2 - 6) + Vector3.new(0, height, 0)
 		task.spawn(Bombs.plant, stage, spot)
-		task.wait(Config.PlantedBombInterval)
+		task.wait(Config.PlantedBombInterval * (1 - 0.5 * ctx.progress()))
+	end
+end
+
+-- CHAOS MODE: sharks burst in through the outer walls, each one going for a random player inside.
+local function sharkAttacks(stage, ctx)
+	local settings = Config.Chaos
+	task.wait(settings.firstShark)
+	while ctx.isActive() do
+		local inside = {}
+		for _, player in Players:GetPlayers() do
+			local root = Util.rootPart(player)
+			local offset = root and (root.Position - stage.origin)
+			if offset and Util.aliveHumanoid(player) and math.abs(offset.X) < stage.width / 2 and math.abs(offset.Z) < stage.depth / 2 then
+				table.insert(inside, player)
+			end
+		end
+		if #inside > 0 then
+			task.spawn(FlyingShark.attack, stage, inside[math.random(1, #inside)])
+		end
+		task.wait(math.random(settings.sharkEvery[1], settings.sharkEvery[2]))
 	end
 end
 
 function BombHotel.run(stage, ctx)
 	task.spawn(spawnBubbles, stage, ctx)
+
+	-- Sometimes the round is CHAOTIC: double points, but sharks come through the walls.
+	if RoundControl.forceChaos or math.random() < Config.Chaos.chance then
+		RoundControl.forceChaos = false
+		Score.setRoundMultiplier(Config.Chaos.scoreMultiplier)
+		Remotes.fireAll("Chaos", { multiplier = Config.Chaos.scoreMultiplier })
+		task.spawn(sharkAttacks, stage, ctx)
+	end
 
 	-- A few calm seconds: just the hum and the clock.
 	task.wait(3)
