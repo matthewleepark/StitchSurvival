@@ -265,11 +265,38 @@ local function build()
 	button("+100 Stickers", function()
 		send("Stickers")
 	end)
-	button("Best passive (Legendary)", function()
-		send("MaxGear")
+
+	-- Passives: type a player's name to give to them, or leave it blank for yourself.
+	heading("PASSIVES")
+	order += 1
+	local targetBox = new("TextBox", {
+		LayoutOrder = order,
+		Size = UDim2.new(1, -8, 0, 30),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Font = FONT,
+		TextSize = 15,
+		TextColor3 = Colors.Ink,
+		PlaceholderText = "Give to: me (or type a player's name)",
+		Text = "",
+		ClearTextOnFocus = false,
+	}, list)
+	new("UICorner", { CornerRadius = UDim.new(0, 6) }, targetBox)
+	new("UIStroke", { Thickness = 1.5, Color = Colors.Ink, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, targetBox)
+	local function target(): string
+		return targetBox.Text
+	end
+	button("Give ALL passives", function()
+		send("GiveAllPassives", { target = target() })
 	end)
-	button("Remove passive", function()
-		send("ResetGear")
+	for _, passive in Config.Gear do
+		local b = button(`Give {passive.icon} {passive.name} ({passive.rarity})`, function()
+			send("GivePassive", { passive = passive.name, target = target() })
+		end)
+		b.TextColor3 = Config.RarityColors[passive.rarity]
+		b.BackgroundColor3 = Color3.fromRGB(70, 56, 46)
+	end
+	button("Take passive away", function()
+		send("RemovePassive", { target = target() })
 	end)
 
 	local function flip()

@@ -9,7 +9,10 @@
 --   Teleport <stage>             "Pod", "BombHotel" or "SharkSurvival" (levels must be running)
 --   DropBomb                     drop a Bomb Hotel bomb right above you
 --   Bubbles                      spawn a ring of score bubbles around you
---   Stickers, MaxGear, ResetGear
+--   Stickers
+--   GivePassive { passive, target }  give a passive (target = "me" or a player name) and equip it
+--   GiveAllPassives { target }       every passive
+--   RemovePassive { target }         take the equipped passive off
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -145,14 +148,58 @@ function commands.Stickers(player: Player)
 	end
 end
 
-function commands.MaxGear(player: Player)
-	local best = Config.Gear[#Config.Gear - 1] -- the Legendary (the last one is the secret)
-	Gear.give(player, best.name)
-	tell(player, `Gear set to {best.name}`)
+-- Finds who a passive command is for: blank or "me" means you; otherwise the start of a player's
+-- name or display name (any capitalization).
+local function findTarget(player: Player, name: any): Player?
+	if type(name) ~= "string" or name == "" or string.lower(name) == "me" then
+		return player
+	end
+	local wanted = string.lower(name)
+	for _, other in Players:GetPlayers() do
+		if string.sub(string.lower(other.Name), 1, #wanted) == wanted or string.sub(string.lower(other.DisplayName), 1, #wanted) == wanted then
+			return other
+		end
+	end
+	tell(player, `No player called "{name}"`)
+	return nil
 end
 
-function commands.ResetGear(player: Player)
-	player:SetAttribute("Gear", nil)
+-- Give a passive (and equip it). Argument: { passive = name, target = player name or "me" }.
+function commands.GivePassive(player: Player, args: any)
+	if type(args) ~= "table" or not Config.getGear(args.passive) then
+		return
+	end
+	local target = findTarget(player, args.target)
+	if target then
+		Gear.give(target, args.passive)
+		Gear.equip(target, args.passive)
+		tell(player, `Gave {args.passive} to {if target == player then "you" else target.DisplayName}`)
+		if target ~= player then
+			tell(target, `An admin gave you {args.passive}!`)
+		end
+	end
+end
+
+-- Give every passive (equips the secret one, since it has everything).
+function commands.GiveAllPassives(player: Player, args: any)
+	local target = findTarget(player, type(args) == "table" and args.target or nil)
+	if target then
+		for _, passive in Config.Gear do
+			Gear.give(target, passive.name)
+		end
+		Gear.equip(target, Config.Gear[#Config.Gear].name)
+		tell(player, `Gave every passive to {if target == player then "you" else target.DisplayName}`)
+	end
+end
+
+-- Take away the equipped passive (they keep their collection).
+function commands.RemovePassive(player: Player, args: any)
+	local target = findTarget(player, type(args) == "table" and args.target or nil)
+	if target then
+		target:SetAttribute("Gear", nil)
+		Gear.apply(target)
+		tell(player, `Took the passive off {if target == player then "you" else target.DisplayName}`)
+	end
 end
 
 function Admin.start(podInfo)

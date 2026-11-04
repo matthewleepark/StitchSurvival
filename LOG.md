@@ -3,6 +3,14 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-04 (admin passives) — Matthew (with Claude)
+Same branch.
+- **Admin panel PASSIVES section:** a "Give to" box (blank or "me" = yourself, or the start of a player's name), a
+  button per passive (in its rarity color) that gives and equips it, "Give ALL passives" (equips the secret), and
+  "Take passive away". Server commands `GivePassive`, `GiveAllPassives`, `RemovePassive` in `Admin.luau`
+  (replacing MaxGear/ResetGear); the target gets a message when an admin gives them one.
+- **Checked:** luau-lsp clean. **Not checked in Studio:** the Rojo plugin is still disconnected.
+
 ## 2026-11-04 (passives) — Matthew (with Claude)
 Same branch.
 - **Gear -> passives that work in every game.** Players see "passives" everywhere now (machine sign, prompt,
