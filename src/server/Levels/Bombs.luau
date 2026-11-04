@@ -90,9 +90,10 @@ local function collapse(block: BasePart, origin: Vector3)
 		if character and humanoid then
 			-- Falling down onto someone = squashed flat.
 			if block.AssemblyLinearVelocity.Y < -CRUSH_SPEED and block.Position.Y > hit.Position.Y + 1 and humanoid.Health > 0 then
-				humanoid.Health = 0
-				Util.playSound("Crush", block)
-				Remotes.fireAll("Squish", { position = hit.Position })
+				if Util.kill(humanoid) then
+					Util.playSound("Crush", block)
+					Remotes.fireAll("Squish", { position = hit.Position })
+				end
 			end
 		elseif not landed and hit.CanCollide and block.AssemblyLinearVelocity.Magnitude > 12 then
 			landed = true

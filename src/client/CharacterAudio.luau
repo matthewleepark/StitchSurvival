@@ -10,12 +10,9 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local SoundBank = require(ReplicatedStorage.Shared.SoundBank)
 local Audio = require(script.Parent.Audio)
-local CameraShake = require(script.Parent.CameraShake)
 
-local localPlayer = Players.LocalPlayer
 
 local REPLACED_DEFAULTS = { Running = true, Jumping = true, Landing = true, Died = true }
-local HEAVY_LANDING_SPEED = 28 -- falling faster than this (about one floor) is a heavy landing
 
 local CharacterAudio = {}
 
@@ -118,7 +115,6 @@ local function track(character: Model)
 		lastVelocityY = 0,
 	}
 	tracked[character] = entry
-	local isLocal = character == localPlayer.Character
 
 	humanoid.StateChanged:Connect(function(_, new)
 		if new == Enum.HumanoidStateType.Jumping then
@@ -127,22 +123,8 @@ local function track(character: Model)
 		elseif new == Enum.HumanoidStateType.Freefall then
 			entry.lowestFall = 0
 		elseif new == Enum.HumanoidStateType.Landed then
-			if entry.lowestFall < -HEAVY_LANDING_SPEED then
-				Audio.play("LandHeavy", root)
-				if isLocal then
-					-- The puppet's limbs rattle and it staggers: half speed for a moment.
-					CameraShake.shake(0.6)
-					local staggered = Config.Doll.WalkSpeed / 2
-					humanoid.WalkSpeed = staggered
-					task.delay(0.5, function()
-						if humanoid.WalkSpeed == staggered then
-							humanoid.WalkSpeed = Config.Doll.WalkSpeed
-						end
-					end)
-				end
-			else
-				Audio.play("LandSoft", root)
-			end
+			-- Just a soft landing sound; no heavy slam, screen shake or stagger.
+			Audio.play("LandSoft", root)
 			entry.lowestFall = 0
 		end
 	end)

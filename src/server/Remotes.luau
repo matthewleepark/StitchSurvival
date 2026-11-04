@@ -14,10 +14,16 @@ local requestRoll = Instance.new("RemoteEvent")
 requestRoll.Name = "RequestRoll"
 requestRoll.Parent = folder
 
+-- Admin panel buttons. The server checks the sender is an admin before doing anything.
+local adminCommand = Instance.new("RemoteEvent")
+adminCommand.Name = "AdminCommand"
+adminCommand.Parent = folder
+
 folder.Parent = ReplicatedStorage
 
 local Remotes = {
 	RequestRoll = requestRoll,
+	AdminCommand = adminCommand,
 }
 
 function Remotes.fireAll(kind: string, data: any?)

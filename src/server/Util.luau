@@ -89,6 +89,17 @@ function Util.weightedPick(list)
 	return list[#list]
 end
 
+-- Pops a player instantly, unless they're in admin god mode. Returns whether it worked.
+-- (Normal damage from TakeDamage is already blocked in god mode by an invisible ForceField.)
+function Util.kill(humanoid: Humanoid): boolean
+	local character = humanoid.Parent
+	if character and character:GetAttribute("God") then
+		return false
+	end
+	humanoid.Health = 0
+	return true
+end
+
 -- Drops the up/down part of a direction (for knockbacks along the ground).
 function Util.flatten(direction: Vector3): Vector3
 	return Vector3.new(direction.X, 0, direction.Z)

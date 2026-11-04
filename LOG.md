@@ -1,7 +1,24 @@
-﻿# LOG.md
+# LOG.md
 
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
+
+## 2026-11-03 — Matthew (with Claude)
+Branch `matthew/admin-and-doll`, built on top of `rosie/hotel-hub`.
+- **Admin panel** (only for names in `Config.Admins`, checked on the server): start a round now in any level
+  (pulls everyone in, skipping the room queue), end the round, god mode, fly, speed, heal, respawn,
+  teleports, drop a bomb on me, score bubbles, +100 Stickers, best/no scuba gear. F2 opens it.
+  New files: `server/Admin.luau`, `server/RoundControl.luau`, `client/AdminPanel.luau`. `Util.kill` replaces
+  direct `Health = 0` so god mode works.
+- **Round loop** (`init.server.luau`): admin "Start now" makes a pretend room (`adminStart`); normal play still
+  goes through `Rooms`.
+- **No more heavy-landing slam** (`client/CharacterAudio.luau`): no thump, screen shake or stagger; just the
+  soft landing sound. Rosie, please look since you own client files.
+- **Doll look** (`Doll.luau`): your own head stays (skin, face, hair, hats), slightly bigger; the body is a
+  plush with white seams, two buttons, a knee patch and the zipper.
+- **Checked:** luau-lsp analyze clean; Studio playtest: admin recognized, Start now -> Bomb Hotel countdown,
+  doll parts present, head color kept, no new console errors.
+- **Next:** merge PR #1 first, then open a PR for this branch.
 
 ## 2026-11-01 (later) — Rosie (with Claude)
 - Matthew agreed to the changes below, so `rosie/hotel-hub` was pushed (commit `6bd9af2`) and pull request

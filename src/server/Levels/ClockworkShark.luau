@@ -260,7 +260,7 @@ function ClockworkShark:pop(player: Player)
 	if not humanoid then
 		return
 	end
-	humanoid.Health = 0
+	Util.kill(humanoid)
 	Score.breakCombo(player)
 	Util.playSound("Chomp", self.head)
 	self.jawOpen = 0

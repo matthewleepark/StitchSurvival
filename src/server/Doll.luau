@@ -1,5 +1,6 @@
--- Turns every character into a little knitted burlap doll, about 3 studs tall, with a zipper in
--- their player color. Hats and accessories stay on, like costumes.
+-- Turns every character into a cute stitched plush doll, about 3 studs tall: a burlap felt body with
+-- white seams, buttons, a knee patch and a zipper in their player color. The head stays the player's
+-- own (face, skin, hair and hats), just a little bigger for cute proportions.
 -- When a doll is popped it goes completely floppy: every joint turns into a loose ball-and-socket
 -- so the arms, legs and head tumble around (a ragdoll) instead of falling off.
 
@@ -60,20 +61,65 @@ local function setUpCharacter(character: Model)
 	end)
 end
 
+-- A short row of white "thread" dashes down one side of a body part.
+local function seam(part: BasePart, side: number)
+	local dashes = 3
+	for i = 1, dashes do
+		local y = -part.Size.Y / 2 + part.Size.Y * (i - 0.5) / dashes
+		local dash = Instance.new("Part")
+		dash.Name = "Stitch"
+		dash.Size = Vector3.new(0.05, part.Size.Y / (dashes * 2), 0.07)
+		dash.CFrame = part.CFrame * CFrame.new(side * (part.Size.X / 2 + 0.02), y, 0)
+		dash.Material = Enum.Material.Fabric
+		dash.Color = Config.Colors.Paper
+		attach(dash, part)
+	end
+end
+
+local function decoration(name: string, size: Vector3, cframe: CFrame, color: Color3, material: Enum.Material, to: BasePart, round: boolean?)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Size = size
+	part.CFrame = cframe
+	part.Color = color
+	part.Material = material
+	if round then
+		part.Shape = Enum.PartType.Cylinder
+	end
+	attach(part, to)
+	return part
+end
+
+-- Cute proportions: a slightly bigger head on a smaller, chubbier body.
+local function cuteProportions(humanoid: Humanoid)
+	local scales = { HeadScale = 1.25, BodyHeightScale = 0.85, BodyWidthScale = 1.05, BodyDepthScale = 1.05 }
+	for name, value in scales do
+		local scale = humanoid:FindFirstChild(name)
+		if scale and scale:IsA("NumberValue") then
+			scale.Value = value
+		end
+	end
+end
+
 local function dress(player: Player, character: Model)
-	-- Shrink to sack-doll size first, so the zipper is sized to the small torso.
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		cuteProportions(humanoid)
+	end
+
+	-- Shrink to sack-doll size, so everything below is sized to the small body.
 	if Config.Doll.Scale ~= 1 then
 		character:ScaleTo(Config.Doll.Scale)
 	end
 
 	-- Set after scaling so nothing rescales them: normal-feeling movement for a doll this size.
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.UseJumpPower = false
 		humanoid.JumpHeight = Config.Doll.JumpHeight
 		humanoid.WalkSpeed = Config.Doll.WalkSpeed
 	end
 
+	-- Clothes come off so the plush body shows. Hats, hair and the face stay: the head is still you.
 	if Config.Doll.RemoveClothing then
 		for _, item in character:GetChildren() do
 			if item:IsA("Shirt") or item:IsA("Pants") or item:IsA("ShirtGraphic") then
@@ -82,45 +128,63 @@ local function dress(player: Player, character: Model)
 		end
 	end
 
-	local burlap = Config.Colors.Burlap
+	-- Soft burlap felt body; the head keeps your own skin color.
+	local felt = Config.Colors.Burlap
 	local bodyColors = character:FindFirstChildOfClass("BodyColors")
 	if bodyColors then
-		bodyColors.HeadColor3 = burlap
-		bodyColors.TorsoColor3 = burlap
-		bodyColors.LeftArmColor3 = burlap
-		bodyColors.RightArmColor3 = burlap
-		bodyColors.LeftLegColor3 = burlap
-		bodyColors.RightLegColor3 = burlap
+		bodyColors.TorsoColor3 = felt
+		bodyColors.LeftArmColor3 = felt
+		bodyColors.RightArmColor3 = felt
+		bodyColors.LeftLegColor3 = felt
+		bodyColors.RightLegColor3 = felt
 	end
-
 	for _, part in character:GetChildren() do
-		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+		if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" and part.Name ~= "Head" then
 			part.Material = Enum.Material.Fabric
-			part.Color = burlap
+			part.Color = felt
 		end
 	end
 
-	-- Zipper down the front of the torso.
+	-- Stitched seams down the outside of the arms and legs, and both sides of the torso.
+	for _, name in { "LeftUpperArm", "LeftLowerArm", "LeftUpperLeg", "LeftLowerLeg" } do
+		local part = character:FindFirstChild(name)
+		if part and part:IsA("BasePart") then
+			seam(part, -1)
+		end
+	end
+	for _, name in { "RightUpperArm", "RightLowerArm", "RightUpperLeg", "RightLowerLeg" } do
+		local part = character:FindFirstChild(name)
+		if part and part:IsA("BasePart") then
+			seam(part, 1)
+		end
+	end
+
+	local color = player:GetAttribute("Color") or Config.Colors.Gold
 	local torso = character:FindFirstChild("UpperTorso") or character:FindFirstChild("Torso")
 	if torso and torso:IsA("BasePart") then
-		local color = player:GetAttribute("Color") or Config.Colors.Gold
+		seam(torso, -1)
+		seam(torso, 1)
 		local front = torso.CFrame * CFrame.new(0, 0, -torso.Size.Z / 2 - 0.04)
 
-		local zipper = Instance.new("Part")
-		zipper.Name = "Zipper"
-		zipper.Size = Vector3.new(0.22, torso.Size.Y * 0.85, 0.08)
-		zipper.CFrame = front
-		zipper.Material = Enum.Material.Metal
-		zipper.Color = color
-		attach(zipper, torso)
+		-- Zipper down the middle in your player color.
+		decoration("Zipper", Vector3.new(0.22, torso.Size.Y * 0.85, 0.08), front, color, Enum.Material.Metal, torso)
+		decoration("ZipperPull", Vector3.new(0.35, 0.45, 0.1), front * CFrame.new(0, torso.Size.Y * 0.3, -0.06), Config.Colors.Gold, Enum.Material.Metal, torso)
 
-		local pull = Instance.new("Part")
-		pull.Name = "ZipperPull"
-		pull.Size = Vector3.new(0.35, 0.45, 0.1)
-		pull.CFrame = front * CFrame.new(0, torso.Size.Y * 0.3, -0.06)
-		pull.Material = Enum.Material.Metal
-		pull.Color = Config.Colors.Gold
-		attach(pull, torso)
+		-- Two big round buttons beside it.
+		for i, y in { 0.15, -0.2 } do
+			local spot = front * CFrame.new(torso.Size.X * 0.25, torso.Size.Y * y, -0.03) * CFrame.Angles(0, math.rad(90), 0)
+			decoration(`Button{i}`, Vector3.new(0.08, 0.32, 0.32), spot, Config.Colors.WoodDark, Enum.Material.SmoothPlastic, torso, true)
+		end
+	end
+
+	-- A felt patch on one knee, sewn on with a cross stitch.
+	local leg = character:FindFirstChild("LeftLowerLeg")
+	if leg and leg:IsA("BasePart") then
+		local patchSpot = leg.CFrame * CFrame.new(0, leg.Size.Y * 0.2, -leg.Size.Z / 2 - 0.03)
+		decoration("Patch", Vector3.new(leg.Size.X * 0.7, leg.Size.X * 0.7, 0.05), patchSpot, color, Enum.Material.Fabric, leg)
+		for _, angle in { 45, -45 } do
+			decoration("CrossStitch", Vector3.new(0.04, leg.Size.X * 0.5, 0.06), patchSpot * CFrame.new(0, 0, -0.03) * CFrame.Angles(0, 0, math.rad(angle)), Config.Colors.Paper, Enum.Material.Fabric, leg)
+		end
 	end
 end
 

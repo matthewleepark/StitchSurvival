@@ -4,6 +4,9 @@ local Config = {}
 
 -- Rounds ---------------------------------------------------------------------
 
+-- Players who get the admin panel (testing tools). Roblox usernames, any capitalization.
+Config.Admins = { "3HBQ" }
+
 Config.MinPlayers = 1 -- players a room needs queued before its start countdown begins
 Config.IntermissionTime = 60 -- countdown once a room is ready; lower this (e.g. 10) while testing
 Config.LoadingTime = 3 -- the "map tipping out of the toybox" moment before teleporting

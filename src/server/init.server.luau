@@ -11,6 +11,8 @@ local Gear = require(script.Gear)
 local Mood = require(script.Mood)
 local Remotes = require(script.Remotes)
 local Rooms = require(script.Rooms)
+local RoundControl = require(script.RoundControl)
+local Admin = require(script.Admin)
 local Score = require(script.Score)
 local Util = require(script.Util)
 local Pod = require(script.Levels.HotelLobby) -- the hub; swap back to script.Levels.Pod for the old toybox
@@ -57,6 +59,7 @@ local pod = Pod.build()
 Rooms.start(pod.rooms or {}) -- the old toybox Pod has no rooms, so nothing could start with it
 Doll.start()
 Gear.start(pod.machine)
+Admin.start(pod)
 
 local function sendToPod(player: Player)
 	local character = player.Character
@@ -85,7 +88,13 @@ local function intermission()
 			setStatus("Join a room upstairs to play!")
 			t = Config.IntermissionTime
 		end
-		task.wait(1)
+		-- Wait a second, but stop right away if an admin pressed "Start now".
+		for _ = 1, 10 do
+			if RoundControl.skipIntermission then
+				return
+			end
+			task.wait(0.1)
+		end
 	end
 end
 
@@ -126,12 +135,15 @@ local function playRound(room: Rooms.Room)
 		return
 	end
 	local level = levelModules[def.name]
-	local queued = Rooms.take(room) -- the room reopens for the next game while this one plays
+	-- An admin "Start now" pulls in everyone; a normal round takes the room's queue.
+	local queued = if (room :: any).adminStart then Players:GetPlayers() else Rooms.take(room) -- the room reopens for the next game while this one plays
 
 	-- Loading: the music dips while the new level tips out of the toybox.
 	setPhase("Loading")
 	setStatus(`Loading {def.title}...`)
 	local stage = level.build(def)
+	RoundControl.levelName = def.name
+	RoundControl.stage = stage
 	Score.reset()
 	task.wait(Config.LoadingTime)
 
@@ -204,11 +216,15 @@ local function playRound(room: Rooms.Room)
 			local root = Util.rootPart(player)
 			local humanoid = Util.aliveHumanoid(player)
 			if root and humanoid and root.Position.Y < stage.killY then
-				humanoid.Health = 0
+				if not Util.kill(humanoid) and player.Character then
+					-- God mode: fell out of the level, so pop back to the start instead.
+					player.Character:PivotTo(stage.spawns[1])
+				end
 			end
 		end
 
-		if timeLeft <= 0 or next(alive) == nil then
+		if timeLeft <= 0 or next(alive) == nil or RoundControl.endRound then
+			RoundControl.endRound = false
 			active = false
 		end
 		task.wait(0.2)
@@ -274,11 +290,26 @@ local function playRound(room: Rooms.Room)
 		level.cleanup(stage)
 	end
 	stage.model:Destroy()
+	RoundControl.levelName = nil
+	RoundControl.stage = nil
+end
+
+-- An admin pressed "Start now": a pretend room for the chosen level (or a random one).
+local function adminRoom()
+	RoundControl.skipIntermission = false
+	local def = Util.weightedPick(Config.Levels)
+	for _, candidate in Config.Levels do
+		if candidate.name == RoundControl.forceLevel then
+			def = candidate
+		end
+	end
+	RoundControl.forceLevel = nil
+	return { number = 0, level = def.name, title = def.title, adminStart = true } :: any
 end
 
 while true do
 	intermission()
-	local room = Rooms.pick()
+	local room = if RoundControl.skipIntermission then adminRoom() else Rooms.pick()
 	if room then
 		playRound(room)
 	end

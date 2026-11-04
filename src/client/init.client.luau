@@ -3,6 +3,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local AdminPanel = require(script.AdminPanel)
 local Audio = require(script.Audio)
 local CameraShake = require(script.CameraShake)
 local CharacterAudio = require(script.CharacterAudio)
@@ -21,6 +22,7 @@ CharacterAudio.start()
 Danger.start()
 Flashlight.start()
 Grab.start()
+AdminPanel.start()
 
 TitleScreen.show(function()
 	Audio.beginGame()
