@@ -59,7 +59,7 @@ Config.StartingStickers = 40
 Config.Codes = {
 	WELCOME = { stickers = 50, message = "Welcome to the hotel! +50 Stickers" },
 	STITCH = { stickers = 100, message = "+100 Stickers!" },
-	CHOMP = { gear = "Spring Shoes", message = "You got Spring Shoes!" },
+	CHOMP = { gear = "Bouncy Stuffing", message = "You got Bouncy Stuffing!" },
 }
 Config.RollCost = 20
 
@@ -252,39 +252,42 @@ Config.Doll = {
 -- Below this fraction of health the heartbeat starts and the world sounds muffled.
 Config.LowHealth = 0.4
 
--- Gear (the RNG) --------------------------------------------------------------------
--- Walk up to the gear machine in the lobby to open the gear panel: it lists every item, its rarity,
--- its chance and its passives, and has the ROLL button (a spinning reel picks the item). Everything
--- you roll goes in your collection; equip whichever one you like.
+-- Passives (the RNG) ------------------------------------------------------------------
+-- Walk up to the passive machine in the lobby to open its panel: it lists every passive, its rarity,
+-- its chance and what it does, and has the ROLL button (a spinning reel picks one). Everything you
+-- roll goes in your collection; equip whichever one you like. Every passive helps in every game.
 --
--- Passives (all optional on an item):
---   air          seconds you can stay underwater
+-- What a passive can do (all optional, mix and match):
 --   speed        extra walk speed
 --   jump         extra jump height (studs)
---   bombArmor    0.2 = bombs and fire hurt 20% less
+--   toughness    0.2 = you take 20% less damage from everything (bombs, fire, drowning)
+--   regen        heals this much health every second
+--   air          extra seconds of air underwater
 --   magnet       pulls in score bubbles from this many studs away
 --   scoreBonus   0.25 = +25% points
+--   sense        see bombs and sharks through walls
 --   secondChance survive one pop (or knockout) per round, at half health
--- A "secret" item shows up as ??? in the panel until you own it.
+-- A "secret" passive shows up as ??? in the panel until you own it.
+-- (The code still calls these "gear" internally: Config.Gear, the "Gear" attribute.)
 
-Config.DefaultOxygen = 5
+Config.DefaultOxygen = 10 -- seconds of air everyone has; the air passive adds to this
 Config.Gear = {
-	{ name = "Paper Snorkel", rarity = "Common", weight = 34, icon = "\u{1F93F}", passives = { air = 8 } },
-	{ name = "Felt Sneakers", rarity = "Common", weight = 26, icon = "\u{1F45F}", passives = { speed = 2 } },
-	{ name = "Bubble Wrap Suit", rarity = "Uncommon", weight = 14, icon = "\u{1FAE7}", passives = { air = 12, bombArmor = 0.2 } },
-	{ name = "Spring Shoes", rarity = "Uncommon", weight = 11, icon = "\u{1F998}", passives = { jump = 3, speed = 1 } },
-	{ name = "Tin Can Helmet", rarity = "Rare", weight = 6, icon = "\u{1FA96}", passives = { air = 18, bombArmor = 0.35 } },
-	{ name = "Magnet Mitten", rarity = "Rare", weight = 4, icon = "\u{1F9F2}", passives = { magnet = 10, scoreBonus = 0.1 } },
-	{ name = "Clockwork Diving Bell", rarity = "Epic", weight = 2.4, icon = "\u{1F514}", passives = { air = 28, speed = 2 } },
-	{ name = "Lucky Button", rarity = "Epic", weight = 1.6, icon = "\u{1F340}", passives = { scoreBonus = 0.3, magnet = 6 } },
-	{ name = "Golden Fishbowl", rarity = "Legendary", weight = 0.9, icon = "\u{1F420}", passives = { air = 45, secondChance = true } },
+	{ name = "Lucky Thread", rarity = "Common", weight = 34, icon = "\u{1F9F5}", passives = { scoreBonus = 0.15 } },
+	{ name = "Quick Laces", rarity = "Common", weight = 26, icon = "\u{1F45F}", passives = { speed = 2 } },
+	{ name = "Bouncy Stuffing", rarity = "Uncommon", weight = 14, icon = "\u{2601}\u{FE0F}", passives = { jump = 3, speed = 1 } },
+	{ name = "Thick Felt", rarity = "Uncommon", weight = 11, icon = "\u{1F9F6}", passives = { toughness = 0.2, air = 5 } },
+	{ name = "Button Magnet", rarity = "Rare", weight = 6, icon = "\u{1F9F2}", passives = { magnet = 10, scoreBonus = 0.1 } },
+	{ name = "Mending Needle", rarity = "Rare", weight = 4, icon = "\u{1FAA1}", passives = { regen = 2, toughness = 0.15 } },
+	{ name = "Spooky Sense", rarity = "Epic", weight = 2.4, icon = "\u{1F441}\u{FE0F}", passives = { sense = true, speed = 2 } },
+	{ name = "Deep Breath", rarity = "Epic", weight = 1.6, icon = "\u{1FAC1}", passives = { air = 20, regen = 1, speed = 1 } },
+	{ name = "Golden Zipper", rarity = "Legendary", weight = 0.9, icon = "\u{2B50}", passives = { secondChance = true, scoreBonus = 0.25 } },
 	{
 		name = "Shark Tooth Charm",
 		rarity = "Secret",
 		weight = 0.1,
 		icon = "\u{1F9B7}",
 		secret = true,
-		passives = { air = 60, speed = 3, jump = 3, bombArmor = 0.5, magnet = 12, scoreBonus = 0.5, secondChance = true },
+		passives = { speed = 3, jump = 3, toughness = 0.4, regen = 3, air = 40, magnet = 12, scoreBonus = 0.5, sense = true, secondChance = true },
 	},
 }
 
@@ -327,23 +330,29 @@ end
 function Config.describePassives(gear): { string }
 	local p = gear.passives
 	local lines = {}
-	if p.air then
-		table.insert(lines, `{p.air}s of air underwater`)
-	end
 	if p.speed then
 		table.insert(lines, `+{p.speed} walk speed`)
 	end
 	if p.jump then
 		table.insert(lines, `+{p.jump} jump height`)
 	end
-	if p.bombArmor then
-		table.insert(lines, `Bombs and fire hurt {math.floor(p.bombArmor * 100)}% less`)
+	if p.toughness then
+		table.insert(lines, `Take {math.floor(p.toughness * 100)}% less damage`)
+	end
+	if p.regen then
+		table.insert(lines, `Heals {p.regen} health per second`)
+	end
+	if p.air then
+		table.insert(lines, `+{p.air}s of air underwater`)
 	end
 	if p.magnet then
 		table.insert(lines, `Pulls in score bubbles from {p.magnet} studs`)
 	end
 	if p.scoreBonus then
 		table.insert(lines, `+{math.floor(p.scoreBonus * 100)}% points`)
+	end
+	if p.sense then
+		table.insert(lines, "See bombs and sharks through walls")
 	end
 	if p.secondChance then
 		table.insert(lines, "Survive one pop per round")

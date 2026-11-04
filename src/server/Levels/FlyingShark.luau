@@ -118,6 +118,7 @@ local function build(parent: Instance)
 	end
 
 	model.Parent = parent
+	Craft.tag(model, "Hazard") -- the Spooky Sense passive shows it through walls
 	return model, pieces, jawPieces
 end
 

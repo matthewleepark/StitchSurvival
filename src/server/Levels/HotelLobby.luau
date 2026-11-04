@@ -1,4 +1,4 @@
--- The hub: a grand hotel lobby where players arrive, walk around, and roll for scuba gear between
+-- The hub: a grand hotel lobby where players arrive, walk around, and roll for passives between
 -- levels. Same contract as Pod.build(): returns { model, machine, spawn }, plus `rooms`: the
 -- numbered guest-room doors that act as game queues (see Rooms.luau).
 --

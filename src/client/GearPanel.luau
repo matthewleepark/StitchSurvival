@@ -1,4 +1,4 @@
--- The gear machine's panel. Walk up to the machine in the lobby to open it.
+-- The passive machine's panel. Walk up to the machine in the lobby to open it.
 --   * Top: a reel of items that spins and slows down to land on what you rolled.
 --   * Middle: the result and its passives, the ROLL button and your Stickers.
 --   * Bottom: every item with its picture, rarity, chance and passives, and an EQUIP button for the
@@ -188,7 +188,7 @@ local function build()
 	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
 	fit()
 
-	label(card, { Position = UDim2.fromOffset(20, 10), Size = UDim2.new(1, -120, 0, 40), TextScaled = true, TextXAlignment = Enum.TextXAlignment.Left, Text = "\u{1F3B0} GEAR MACHINE", TextColor3 = Colors.Felt })
+	label(card, { Position = UDim2.fromOffset(20, 10), Size = UDim2.new(1, -120, 0, 40), TextScaled = true, TextXAlignment = Enum.TextXAlignment.Left, Text = "\u{1F3B0} PASSIVE MACHINE", TextColor3 = Colors.Felt })
 	local close = new("TextButton", {
 		Position = UDim2.new(1, -56, 0, 10),
 		Size = UDim2.fromOffset(44, 44),

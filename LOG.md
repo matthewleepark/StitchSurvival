@@ -3,6 +3,19 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-04 (passives) — Matthew (with Claude)
+Same branch.
+- **Gear -> passives that work in every game.** Players see "passives" everywhere now (machine sign, prompt,
+  panel, HUD, title help, admin buttons); the code still says Gear internally. New set of 10 in `Config.Gear`:
+  Lucky Thread, Quick Laces, Bouncy Stuffing, Thick Felt, Button Magnet, Mending Needle, Spooky Sense, Deep Breath,
+  Golden Zipper, and the secret Shark Tooth Charm.
+- **New passive types:** `toughness` (less damage from everything, replaces bomb-only armor; applied in
+  `Util.damage`), `regen` (heal per second, loop in `Gear.start`), `sense` (new client `Sense.luau` outlines anything
+  tagged `Hazard` through walls: bombs, the chaos shark, the clockwork shark). `air` now adds to
+  `Config.DefaultOxygen` (raised 5 -> 10). Promo code CHOMP now gives Bouncy Stuffing.
+- **Checked:** luau-lsp clean. **Not checked in Studio:** the Rojo plugin had disconnected, so the playtest ran old
+  code; needs a retest after reconnecting.
+
 ## 2026-11-04 (codes) — Matthew (with Claude)
 Same branch.
 - **Gear machine easy to find:** moved next to the red runner right in front of the lobby spawn

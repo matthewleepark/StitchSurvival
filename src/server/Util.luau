@@ -125,15 +125,15 @@ function Util.kill(humanoid: Humanoid): boolean
 	return true
 end
 
--- Hurts a player. `armored` damage (bombs, fire) is reduced by the bombArmor passive, and a hit that
+-- Hurts a player. The toughness passive reduces all damage, and a hit that
 -- would pop them can be saved by a second chance. God mode takes no damage.
-function Util.damage(humanoid: Humanoid, amount: number, armored: boolean?)
+function Util.damage(humanoid: Humanoid, amount: number, _armored: boolean?)
 	if isGod(humanoid) or humanoid.Health <= 0 then
 		return
 	end
 	local player = Players:GetPlayerFromCharacter(humanoid.Parent)
-	if armored and player then
-		amount *= 1 - (Util.passive(player, "bombArmor") or 0)
+	if player then
+		amount *= 1 - (Util.passive(player, "toughness") or 0)
 	end
 	if humanoid.Health - amount <= 0 and secondChance(humanoid) then
 		return

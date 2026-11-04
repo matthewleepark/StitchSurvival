@@ -248,7 +248,7 @@ local function buildOxygen()
 	end)
 end
 
--- Gear card: what you have equipped and its passives -------------------------------------------
+-- Passive card: which passive you have equipped and what it does -------------------------------------------
 
 local function buildGear()
 	local card = paper({
@@ -258,7 +258,7 @@ local function buildGear()
 	})
 	local nameLabel = text({ Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 30), TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd }, card)
 	local passiveLabel = text({ Position = UDim2.fromOffset(10, 38), Size = UDim2.new(1, -20, 0, 48), TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = Color3.fromRGB(100, 80, 64) }, card)
-	text({ Position = UDim2.fromOffset(10, 90), Size = UDim2.new(1, -20, 0, 22), TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Text = "Roll for more at the gear machine!", TextColor3 = Colors.Felt }, card)
+	text({ Position = UDim2.fromOffset(10, 90), Size = UDim2.new(1, -20, 0, 22), TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Text = "Roll for more at the passive machine!", TextColor3 = Colors.Felt }, card)
 
 	local function updateGear()
 		local gear = Config.getGear(player:GetAttribute("Gear"))
@@ -267,9 +267,9 @@ local function buildGear()
 			nameLabel.TextColor3 = Config.RarityColors[gear.rarity]
 			passiveLabel.Text = table.concat(Config.describePassives(gear), "\n")
 		else
-			nameLabel.Text = "No gear yet"
+			nameLabel.Text = "No passive yet"
 			nameLabel.TextColor3 = Colors.Ink
-			passiveLabel.Text = `{Config.DefaultOxygen}s of air underwater`
+			passiveLabel.Text = "Roll one at the machine by the entrance!"
 		end
 	end
 	player:GetAttributeChangedSignal("Gear"):Connect(updateGear)

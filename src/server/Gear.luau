@@ -107,8 +107,8 @@ function Gear.start(machine: BasePart)
 
 	-- Walking up to the machine opens the gear panel.
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Open Gear Machine"
-	prompt.ObjectText = "Scuba gear"
+	prompt.ActionText = "Open Passive Machine"
+	prompt.ObjectText = "Passives"
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
@@ -128,6 +128,20 @@ function Gear.start(machine: BasePart)
 	for _, player in Players:GetPlayers() do
 		watch(player)
 	end
+
+	-- The regen passive: heal a little every second.
+	task.spawn(function()
+		while true do
+			task.wait(1)
+			for _, player in Players:GetPlayers() do
+				local regen = Util.passive(player, "regen")
+				local humanoid = regen and Util.aliveHumanoid(player)
+				if humanoid and humanoid.Health < humanoid.MaxHealth then
+					humanoid.Health = math.min(humanoid.MaxHealth, humanoid.Health + regen)
+				end
+			end
+		end
+	end)
 
 	Players.PlayerRemoving:Connect(function(player)
 		lastRoll[player] = nil

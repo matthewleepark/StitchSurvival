@@ -278,6 +278,7 @@ local function buildBomb(stage, position: Vector3)
 
 	bomb:SetNetworkOwner(nil) -- server-controlled so everyone sees the same blast
 	Craft.tag(bomb, "Occluded") -- its sounds get muffled when a floor or wall is in the way
+	Craft.tag(bomb, "Hazard") -- the Spooky Sense passive shows it through walls
 	return bomb, number
 end
 

@@ -124,6 +124,7 @@ function ClockworkShark.new(stage)
 
 	model.Parent = stage.model
 	Craft.tag(self.mid, "Occluded")
+	Craft.tag(model, "Hazard") -- the Spooky Sense passive shows it through walls
 
 	-- Clockwork motor: low and muffled while patrolling underwater, high and fast when hunting.
 	self.motor = Util.loopSound("SharkMotor", self.mid)

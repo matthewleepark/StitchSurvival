@@ -1,4 +1,4 @@
--- The lobby: a cozy cardboard room where players wait between levels and roll for scuba gear.
+-- The lobby: a cozy cardboard room where players wait between levels and roll for passives.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -32,7 +32,7 @@ local function buildGearMachine(parent: Instance, base: Vector3): Part
 	end
 	Craft.cylinder(machine, globeCenter + Vector3.new(0, 3.8, 0), 1, 3, "Y", Colors.Felt, M.Felt, Craft.DECOR)
 
-	Craft.sign(machine, base + Vector3.new(0, 16, -1), 12, 3.5, "SCUBA GEAR", { faceColor = Color3.fromRGB(200, 235, 250) })
+	Craft.sign(machine, base + Vector3.new(0, 16, -1), 12, 3.5, "PASSIVES", { faceColor = Color3.fromRGB(200, 235, 250) })
 
 	-- Make it easy to spot from across a dark room: a glowing ring on the floor, a spotlight from
 	-- above, light from the globe, and a floating sign.
@@ -66,7 +66,7 @@ local function buildGearMachine(parent: Instance, base: Vector3): Part
 	text.Font = Enum.Font.FredokaOne
 	text.TextScaled = true
 	text.TextColor3 = Colors.Paper
-	text.Text = "\u{1F3B0} ROLL FOR GEAR!"
+	text.Text = "\u{1F3B0} ROLL FOR PASSIVES!"
 	text.Parent = billboard
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0.25, 0)

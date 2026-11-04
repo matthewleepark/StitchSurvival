@@ -93,7 +93,7 @@ local HOW_TO_PLAY = table.concat({
 	"smashes rafts and pops anyone it catches. Underwater, watch your air.",
 	"",
 	"Grab score bubbles for points. Survive to earn Stickers,",
-	"then spend them on scuba gear at the gear machine in the Pod.",
+	"then roll for passives at the passive machine in the lobby.",
 }, "\n")
 
 function TitleScreen.show(onPlay: () -> ())
