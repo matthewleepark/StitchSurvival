@@ -177,6 +177,17 @@ local function dress(player: Player, character: Model)
 		end
 	end
 
+	-- A little flashlight strapped to the right shoulder, pointing forward. Everyone can see it; your own
+	-- beam shines out of its lens (client/Flashlight.luau looks for "ShoulderLampLens").
+	if torso and torso:IsA("BasePart") then
+		local mount = torso.CFrame * CFrame.new(torso.Size.X / 2 - 0.15, torso.Size.Y / 2 + 0.2, -0.1)
+		decoration("ShoulderLampStrap", Vector3.new(0.5, 0.12, torso.Size.Z + 0.1), mount * CFrame.new(0, -0.15, 0.1), Config.Colors.Ink, Enum.Material.Fabric, torso)
+		local body = mount * CFrame.Angles(0, math.rad(90), 0) -- cylinder's long side points forward
+		decoration("ShoulderLamp", Vector3.new(0.7, 0.32, 0.32), body, Color3.fromRGB(60, 60, 66), Enum.Material.Metal, torso, true)
+		local lens = decoration("ShoulderLampLens", Vector3.new(0.06, 0.36, 0.36), body * CFrame.new(0.37, 0, 0), Color3.fromRGB(255, 238, 205), Enum.Material.Neon, torso, true)
+		lens.CastShadow = false
+	end
+
 	-- A felt patch on one knee, sewn on with a cross stitch.
 	local leg = character:FindFirstChild("LeftLowerLeg")
 	if leg and leg:IsA("BasePart") then

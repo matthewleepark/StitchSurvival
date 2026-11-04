@@ -253,21 +253,29 @@ end
 
 -- Big double glass doors in a brass frame. Place with the front wall's CFrame.
 function Props.entranceDoor(parent: Instance, cframe: CFrame)
+	-- Tall mahogany double doors in a brass frame, with a glowing transom window above (light from
+	-- the street outside), so the entrance reads as a real way in even in the dark lobby.
 	local m = start("EntranceDoor")
-	local glass = Color3.fromRGB(190, 225, 240)
+	box(m, 0, 9, 0.15, 13, 18, 0.3, L.PanelDark, M.Wood, DECOR) -- dark recess behind the doors
 	for _, side in { -1, 1 } do
-		box(m, side * 5.4, 8, 0.4, 1, 16, 0.8, L.Brass, M.Metal, DECOR)
-		box(m, side * 2.6, 6.6, 0.3, 4.8, 13.2, 0.3, L.Brass, M.Metal, DECOR)
-		local pane = box(m, side * 2.6, 6.8, 0.38, 4, 12, 0.14, glass, M.Glass, DECOR)
-		pane.Transparency = 0.35
-		tube(m, side * 0.9, 6.6, 0.8, 3.6, 0.3, "Y", L.Brass, M.Metal, DECOR)
-		box(m, side * 2.6, 0.8, 0.5, 4.4, 1.4, 0.2, L.Panel, M.Wood, DECOR)
+		box(m, side * 6.2, 9, 0.5, 0.8, 18, 1, L.Brass, M.Metal, DECOR) -- frame posts
+		local leaf = side * 2.8
+		box(m, leaf, 7.5, 0.45, 5.4, 15, 0.4, L.Panel, M.Wood, DECOR) -- door leaf
+		for _, y in { 4, 11 } do -- two raised panels per leaf
+			box(m, leaf, y, 0.7, 3.8, 5.2, 0.15, L.PanelDark, M.Wood, DECOR)
+			box(m, leaf, y, 0.8, 3.2, 4.6, 0.1, L.Panel, M.Wood, DECOR)
+		end
+		tube(m, side * 0.7, 7.5, 0.9, 3.4, 0.3, "Y", L.Brass, M.Metal, DECOR) -- long brass pull handle
+		box(m, leaf, 0.4, 0.7, 5.4, 0.8, 0.2, L.Brass, M.Metal, DECOR) -- kick plate
 	end
-	box(m, 0, 16.2, 0.4, 11.8, 0.9, 0.9, L.Brass, M.Metal, DECOR)
-	local transom = box(m, 0, 18.4, 0.3, 10, 3.2, 0.14, glass, M.Glass, DECOR)
-	transom.Transparency = 0.35
-	box(m, 0, 20.2, 0.4, 11.8, 0.5, 0.9, L.Brass, M.Metal, DECOR)
-	box(m, 0, 0.15, 1.2, 11.6, 0.3, 2.4, L.Brass, M.Metal, DECOR)
+	box(m, 0, 15.4, 0.6, 13.2, 0.8, 1, L.Brass, M.Metal, DECOR) -- lintel
+	local transom = box(m, 0, 17, 0.4, 11.4, 2.2, 0.15, Color3.fromRGB(255, 200, 130), M.Neon, DECOR)
+	transom.Transparency = 0.45
+	for x = -3.8, 3.8, 3.8 do
+		box(m, x, 17, 0.55, 0.2, 2.2, 0.1, L.Brass, M.Metal, DECOR) -- transom bars
+	end
+	box(m, 0, 18.4, 0.6, 13.2, 0.6, 1, L.Brass, M.Metal, DECOR)
+	box(m, 0, 0.15, 1.2, 12.6, 0.3, 2.4, L.Brass, M.Metal, DECOR) -- threshold
 	return finish(m, parent, cframe)
 end
 

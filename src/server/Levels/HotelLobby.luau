@@ -171,55 +171,55 @@ end
 
 local STAIR_RUN = 2
 local BALCONY_WIDTH = 12
+local STAIR_WIDTH = 10
 
--- The bottom step sits 4 studs off the front wall: that gap is where you walk onto the stairs, since
--- the open side is walled off by an invisible barrier.
-local function stairStart(ctx): number
-	return ctx.D / 2 - 4
+-- Where the staircases sit front-to-back: near the entrance, facing into the lobby.
+local function stairZ(ctx): number
+	return ctx.D / 2 - 10
 end
 
+-- A grand staircase on each side. It starts out on the lobby floor (facing the middle of the room,
+-- so you walk straight onto it from the red runner) and climbs sideways up to the balcony.
 local function buildStairs(ctx, side: number)
 	local model, decor, at, MZ = ctx.model, ctx.decor, ctx.at, ctx.MZ
 	local steps = MZ - 1 -- the balcony floor is the 16th "step"
-	local zStart = stairStart(ctx)
-	local zBalcony = zStart - STAIR_RUN * steps
-	local x = side * (ctx.W / 2 - BALCONY_WIDTH / 2)
-	local railX = side * (ctx.W / 2 - BALCONY_WIDTH) + side * 0.3 -- keeps the rail just inside the balcony edge
+	local z = stairZ(ctx)
+	local xTop = side * (ctx.W / 2 - BALCONY_WIDTH) -- where the balcony starts
+	local xBottom = xTop - side * STAIR_RUN * steps
 
-	-- The steps are for looks only; an invisible ramp along the nosings is what you actually climb.
+	-- Solid marble steps with a velvet runner. An invisible ramp along the nosings is what you
+	-- actually walk on, so the climb is smooth.
 	for i = 1, steps do
-		local z = zStart - STAIR_RUN * (i - 1) - STAIR_RUN / 2
+		local x = xBottom + side * (STAIR_RUN * (i - 1) + STAIR_RUN / 2)
 		local p = at(x, i / 2, z)
-		box(model, p.X, p.Y, p.Z, BALCONY_WIDTH, i, STAIR_RUN, L.Marble, MARBLE, { CanCollide = false })
+		box(model, p.X, p.Y, p.Z, STAIR_RUN, i, STAIR_WIDTH, L.Marble, MARBLE)
 		local tread = at(x, i + 0.05, z)
-		box(decor, tread.X, tread.Y, tread.Z, 8, 0.1, STAIR_RUN - 0.2, L.Velvet, M.Felt, DECOR)
-		if i % 2 == 0 then -- a baluster every other step
-			local post = at(railX, i + 1.85, z)
-			Craft.cylinder(decor, post, 3.6, 0.3, "Y", L.Brass, M.Metal, DECOR)
+		box(decor, tread.X, tread.Y, tread.Z, STAIR_RUN - 0.2, 0.1, 7, L.Velvet, M.Felt, DECOR)
+		if i % 2 == 0 then -- balusters on both sides, every other step
+			for _, edge in { -1, 1 } do
+				Craft.cylinder(decor, at(x, i + 1.85, z + edge * (STAIR_WIDTH / 2 - 0.3)), 3.6, 0.3, "Y", L.Brass, M.Metal, DECOR)
+			end
 		end
 	end
 
-	local zFront = zStart + 1
-	local yFront, yBack = 0, 0.5 + (zStart - zBalcony) / STAIR_RUN
-	local rise, run = yBack - yFront, zFront - zBalcony
-	local angle = math.atan2(rise, run)
-	local topMid = at(x, (yFront + yBack) / 2, (zFront + zBalcony) / 2)
-	local normal = Vector3.new(0, math.cos(angle), math.sin(angle))
-	local ramp = Craft.block(model, CFrame.new(topMid - normal * 0.5) * CFrame.Angles(angle, 0, 0), Vector3.new(BALCONY_WIDTH, 1, math.sqrt(rise * rise + run * run)), Color3.new(), nil, INVISIBLE)
+	local bottom = at(xBottom - side * 1, 0, z)
+	local top = at(xTop, steps + 0.5, z)
+	local ramp = Craft.block(model, CFrame.lookAt((bottom + top) / 2, top) * CFrame.new(0, -0.5, 0), Vector3.new(STAIR_WIDTH, 1, (top - bottom).Magnitude), Color3.new(), nil, INVISIBLE)
 	ramp.Name = "StairRamp"
 
-	-- Sloped handrails, and a wall along the open side so nobody wanders in underneath.
-	local lowRail = at(railX, 1 + 3.2, zStart)
-	local highRail = at(railX, MZ + 3.2, zBalcony)
-	for _, drop in { 0, 2.4 } do
-		local a, b = lowRail - Vector3.new(0, drop, 0), highRail - Vector3.new(0, drop, 0)
-		Craft.block(decor, CFrame.lookAt((a + b) / 2, b), Vector3.new(0.6, if drop == 0 then 0.5 else 0.25, (b - a).Magnitude), L.Panel, M.Wood, DECOR)
+	-- Sloped handrails on both sides, with a big newel post and brass ball at the bottom.
+	for _, edge in { -1, 1 } do
+		local railZ = z + edge * (STAIR_WIDTH / 2 - 0.3)
+		local lowRail = at(xBottom, 4.2, railZ)
+		local highRail = at(xTop, MZ + 3.2, railZ)
+		for _, drop in { 0, 2.4 } do
+			local a, b = lowRail - Vector3.new(0, drop, 0), highRail - Vector3.new(0, drop, 0)
+			Craft.block(decor, CFrame.lookAt((a + b) / 2, b), Vector3.new(0.6, if drop == 0 then 0.5 else 0.25, (b - a).Magnitude), L.Panel, M.Wood, DECOR)
+		end
+		local newel = at(xBottom - side * 0.6, 3, railZ)
+		box(decor, newel.X, newel.Y, newel.Z, 1.2, 6, 1.2, L.Panel, M.Wood, DECOR)
+		Craft.ball(decor, newel + Vector3.new(0, 3.4, 0), 1.4, L.Brass, M.Metal, DECOR)
 	end
-	local newel = at(railX, 3, zStart + 0.6)
-	box(decor, newel.X, newel.Y, newel.Z, 1.2, 6, 1.2, L.Panel, M.Wood, DECOR) -- not solid, so it never blocks the way on
-	Craft.ball(decor, newel + Vector3.new(0, 3.4, 0), 1.4, L.Brass, M.Metal, DECOR)
-	local barrier = at(railX, (MZ + 6) / 2, (zStart + zBalcony) / 2)
-	Craft.block(model, CFrame.new(barrier), Vector3.new(0.5, MZ + 6, zStart - zBalcony), Color3.new(), nil, INVISIBLE)
 end
 
 -- A game room's door sign (its level and queue count, kept up to date by Rooms.luau) plus the
@@ -255,8 +255,9 @@ end
 
 local function buildMezzanine(ctx)
 	local model, decor, at, MZ, D = ctx.model, ctx.decor, ctx.at, ctx.MZ, ctx.D
-	local zFront = stairStart(ctx) - STAIR_RUN * (MZ - 1)
+	local zFront = D / 2 -- the balconies run all the way to the front wall, where the stairs land
 	local zBack = -D / 2
+	local gapFront, gapBack = stairZ(ctx) + STAIR_WIDTH / 2, stairZ(ctx) - STAIR_WIDTH / 2
 	local length = zFront - zBack
 	local zMid = (zFront + zBack) / 2
 
@@ -278,23 +279,28 @@ local function buildMezzanine(ctx)
 			box(decor, corbel.X, corbel.Y, corbel.Z, 0.8, 3.2, 1.2, L.Cream, M.Foam, DECOR)
 			Craft.ball(decor, corbel + Vector3.new(-side * 0.1, -1.9, 0), 0.9, L.Brass, M.Metal, DECOR)
 		end
-		for _, z in { zFront - 6, zMid, zBack + 6 } do
+		for _, z in { gapBack - 4, zMid, zBack + 6 } do
 			Props.pillar(decor, at(edge - side * 1.9, 0, z), MZ - 1.5)
 		end
 
 		-- Balustrade: brass balusters with a mahogany rail, plus an invisible rail so nobody tumbles.
-		local rail = at(edge + side * 0.3, MZ + 3.1, zMid)
-		box(decor, rail.X, rail.Y, rail.Z, 0.7, 0.4, length, L.Panel, M.Wood)
-		local base = at(edge + side * 0.3, MZ + 0.2, zMid)
-		box(decor, base.X, base.Y, base.Z, 0.7, 0.4, length, L.Panel, M.Wood, DECOR)
-		for z = zFront - 0.8, zBack + 0.5, -2.4 do
-			Craft.cylinder(decor, at(edge + side * 0.3, MZ + 1.65, z), 2.9, 0.3, "Y", L.Brass, M.Metal, DECOR)
-		end
-		local guard = at(edge + side * 0.3, MZ + 3, zMid)
-		Craft.block(model, CFrame.new(guard), Vector3.new(0.5, 6, length), Color3.new(), nil, INVISIBLE)
-		for z = zBack + 2, zFront - 1, 10 do
-			local newel = at(edge + side * 0.3, MZ + 2, z)
-			box(decor, newel.X, newel.Y, newel.Z, 1, 4, 1, L.Panel, M.Wood)
+		-- It's built in two runs, leaving an opening where the staircase arrives.
+		for _, run in { { zBack, gapBack }, { gapFront, zFront } } do
+			local from, to = run[1], run[2]
+			local runLength, runMid = to - from, (from + to) / 2
+			local rail = at(edge + side * 0.3, MZ + 3.1, runMid)
+			box(decor, rail.X, rail.Y, rail.Z, 0.7, 0.4, runLength, L.Panel, M.Wood)
+			local base = at(edge + side * 0.3, MZ + 0.2, runMid)
+			box(decor, base.X, base.Y, base.Z, 0.7, 0.4, runLength, L.Panel, M.Wood, DECOR)
+			for z = to - 0.8, from + 0.5, -2.4 do
+				Craft.cylinder(decor, at(edge + side * 0.3, MZ + 1.65, z), 2.9, 0.3, "Y", L.Brass, M.Metal, DECOR)
+			end
+			local guard = at(edge + side * 0.3, MZ + 3, runMid)
+			Craft.block(model, CFrame.new(guard), Vector3.new(0.5, 6, runLength), Color3.new(), nil, INVISIBLE)
+			for _, z in { from + 0.5, to - 0.5 } do
+				local newel = at(edge + side * 0.3, MZ + 2, z)
+				box(decor, newel.X, newel.Y, newel.Z, 1, 4, 1, L.Panel, M.Wood)
+			end
 		end
 
 		-- Paneling, five numbered guest-room doors and brass lamps between them.
@@ -389,7 +395,7 @@ local function buildLounges(ctx)
 	for _, spot in { { -41, 10 }, { 41, 10 }, { -16, -30 }, { 51, -30 } } do
 		Props.plant(decor, CFrame.new(at(spot[1], 0, spot[2])), 1)
 	end
-	Props.luggageCart(decor, CFrame.new(at(24, 0, 36)) * CFrame.Angles(0, math.rad(-20), 0))
+	Props.luggageCart(decor, CFrame.new(at(24, 0, 14)) * CFrame.Angles(0, math.rad(-20), 0))
 end
 
 local function buildNooks(ctx)

@@ -3,6 +3,18 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-03 (later) — Matthew (with Claude)
+Same branch, `matthew/admin-and-doll`. **Rosie, these touch your files, please review:**
+- **Shoulder flashlight:** `Doll.luau` straps a small flashlight to the right shoulder (everyone sees it);
+  `client/Flashlight.luau` now shines the beam from its lens ("ShoulderLampLens") and the lens goes dark when off.
+- **Stairs** (`Levels/HotelLobby.luau`): both staircases now start on the lobby floor near the entrance
+  (x = +/-13, z = 30) facing into the room and climb sideways to the balcony. The balconies run to the front
+  wall, and their railing has an opening where the stairs arrive. Luggage cart moved out of the way.
+- **Entrance door** (`Levels/HotelProps.luau`): glass panes against the solid wall looked like floating brown
+  slabs in the dark, so it's now mahogany double doors with raised panels, brass pulls and a glowing transom.
+- **Checked:** luau-lsp clean; in a playtest the ramps run floor -> balcony (top at 15.5, balcony floor 16),
+  the door stands 18.7 tall from the floor, the lamp is on the doll, no new console errors.
+
 ## 2026-11-03 — Matthew (with Claude)
 Branch `matthew/admin-and-doll`, built on top of `rosie/hotel-hub`.
 - **Admin panel** (only for names in `Config.Admins`, checked on the server): start a round now in any level

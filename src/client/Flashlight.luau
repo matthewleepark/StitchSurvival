@@ -43,8 +43,8 @@ local function build()
 	holder, spot = part, light
 end
 
--- Follows the camera's direction from just beside the doll's head, so the beam starts at the
--- character and not at the camera (which would light the back of your own head).
+-- Follows the camera's direction, shining out of the little flashlight on the doll's right shoulder
+-- (or from beside the head if that isn't there yet). The lens glows while the light is on.
 local function follow()
 	local camera = workspace.CurrentCamera
 	local character = player.Character
@@ -61,7 +61,13 @@ local function follow()
 	end
 
 	local look = camera.CFrame.Rotation
-	holder.CFrame = look + head.Position + look.RightVector * 0.5 + look.UpVector * 0.1
+	local lens = character and character:FindFirstChild("ShoulderLampLens", true) :: BasePart?
+	if lens then
+		lens.Material = if enabled then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		holder.CFrame = look + lens.Position + look.LookVector * 0.3
+	else
+		holder.CFrame = look + head.Position + look.RightVector * 0.5 + look.UpVector * 0.1
+	end
 end
 
 local function toggle(_, state: Enum.UserInputState)
