@@ -3,6 +3,17 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-03 (night) — Matthew (with Claude)
+Same branch.
+- **Dimmer lighting** (`Config.Mood`): moonlight 0.4, exposure -0.15, lamps 1.2x, fill lights 0.22. A step darker
+  than the "neutral" pass, still lighter than the original.
+- **Camera** (new `client/CameraGuard.luau`, `Config.Camera`): zoom limited to 2-18 studs, and a sphere sweep from
+  the head pulls the camera in front of any wall it would slip through.
+- **Spooky lobby** (new `Levels/Spooky.luau`, called at the end of `HotelLobby.build`): cobwebs in high corners,
+  drifting dust, two portraits by the entrance whose red eyes glow now and then, scattered papers, and new sound
+  slots `LobbyCreak` / `LobbyWhisper` (empty IDs for now). Tunables in `Config.Spooky`.
+- **Checked:** luau-lsp clean; playtest: zoom 2-18 applied, 60 spooky pieces built, no new console errors.
+
 ## 2026-11-03 (evening) — Matthew (with Claude)
 Same branch. **Rosie, this changes your mood numbers, please check you're happy with the darkness:**
 - **Door glitch fixed** (`Levels/HotelLobby.luau`): the front-wall wainscot ran behind the entrance and poked

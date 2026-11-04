@@ -138,23 +138,37 @@ Config.Colors = {
 -- Mood.luau when the server starts (Studio's Lighting panel will look bright until you press Play).
 Config.Mood = {
 	-- Neutral horror lighting: dim and moody, but every area can be seen. Lower these for darker, raise for brighter.
-	ambient = Color3.fromRGB(52, 50, 60), -- indoor fill light; raise it if it's too dark to play
-	outdoorAmbient = Color3.fromRGB(48, 52, 68),
-	brightness = 0.6, -- moonlight strength
+	ambient = Color3.fromRGB(38, 36, 46), -- indoor fill light; raise it if it's too dark to play
+	outdoorAmbient = Color3.fromRGB(34, 38, 52),
+	brightness = 0.4, -- moonlight strength
 	clockTime = 0, -- midnight
-	exposure = 0,
+	exposure = -0.15,
 	fogColor = Color3.fromRGB(16, 16, 24),
-	fogStart = 50,
-	fogEnd = 320,
-	hazeDensity = 0.22, -- 0 to 1
-	lampBrightness = 1.6, -- every lobby lamp's brightness is multiplied by this
-	lampRange = 1.2, -- ... and how far its light reaches
-	fillLight = 0.45, -- soft hidden lights spread over the lobby so no area is pitch black (0 = off)
+	fogStart = 40,
+	fogEnd = 260,
+	hazeDensity = 0.26, -- 0 to 1
+	lampBrightness = 1.2, -- every lobby lamp's brightness is multiplied by this
+	lampRange = 1.1, -- ... and how far its light reaches
+	fillLight = 0.22, -- soft hidden lights spread over the lobby so no area is pitch black (0 = off)
 	saturation = -0.3, -- drained colors
 	contrast = 0.12,
 	tint = Color3.fromRGB(205, 220, 235),
 	lampChance = 0.15, -- chance per 0.2 s that one lamp flickers
 	surgeEvery = { 45, 90 }, -- seconds between brief power surges where every lamp stutters
+}
+
+-- Camera: how close and how far you can zoom (studs from your doll), and how far the camera stays
+-- in front of walls so it never peeks through them.
+Config.Camera = {
+	minZoom = 2,
+	maxZoom = 18,
+	wallGap = 1.2,
+}
+
+-- Spooky lobby extras (cobwebs, dust, portraits whose eyes light up now and then).
+Config.Spooky = {
+	eyesEvery = { 6, 14 }, -- seconds between a portrait's eyes glowing
+	dust = 12, -- floating dust specks per second (0 = none)
 }
 
 -- Flashlight: F on keyboard, L1 on a gamepad, a "Light" button on mobile. Only you see your own beam.
@@ -329,6 +343,8 @@ Config.Sounds = {
 	GrabRelease = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.5, speed = 2.6, range = 60 }, -- rubber band flick
 	JumpWhoosh = { id = "", volume = 0.25, range = 40 }, -- low sweeping whoosh of air at the top of a jump
 	BubbleHum = { id = "", volume = 0.15, looped = true, range = 14 }, -- faint crystalline mmm-ring-mmm from each score bubble
+	LobbyCreak = { id = "", volume = 0.4, range = 90 }, -- old wooden floorboards / door hinge creaking in the dark
+	LobbyWhisper = { id = "", volume = 0.25, range = 60 }, -- faint, unclear whispering
 	BubblePop = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.6, speed = 3.2, range = 80 }, -- glassy "ting!" (marble on crystal)
 }
 

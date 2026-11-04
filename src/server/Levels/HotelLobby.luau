@@ -14,6 +14,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Craft = require(script.Parent.Parent.Craft)
 local Pod = require(script.Parent.Pod)
 local Props = require(script.Parent.HotelProps)
+local Spooky = require(script.Parent.Spooky)
 
 local Colors = Config.Colors
 local L = Config.LobbyColors
@@ -462,6 +463,7 @@ function HotelLobby.build()
 	buildLounges(ctx)
 	buildNooks(ctx)
 	buildEntrance(ctx)
+	Spooky.decorate(model, ctx.O, ctx.W, ctx.D, ctx.H)
 
 	local machine = Pod.buildGearMachine(model, ctx.at(37, 0, -35))
 
