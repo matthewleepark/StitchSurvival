@@ -239,7 +239,7 @@ local LEVEL_GLOW = { BombHotel = Color3.fromRGB(255, 150, 60), SharkSurvival = C
 local LEVEL_ICON = { BombHotel = "\u{1F4A3}", SharkSurvival = "\u{1F988}" } -- bomb, shark
 local ROOM_DEPTH = 22 -- how far the waiting room goes back behind the wall
 local ROOM_WIDTH = 13 -- along the wall (a 1-stud gap between neighbouring rooms)
-local SEAT_ROWS, SEATS_PER_ROW = 4, 8
+local SEAT_ROWS, SEATS_PER_ROW = 6, 6 -- 36 chairs, enough for a full room of 32
 
 local function buildRoomEntry(ctx, side: number, z: number, number: number, levelName: string)
 	local model, decor, at, MZ, W = ctx.model, ctx.decor, ctx.at, ctx.MZ, ctx.W
@@ -267,44 +267,38 @@ local function buildRoomEntry(ctx, side: number, z: number, number: number, leve
 		Craft.ball(decor, post + Vector3.new(0, 0.8, 0), 0.5, L.Brass, M.Metal, DECOR)
 	end
 
-	-- A big sign floating over the pad, readable from anywhere in the lobby (even through walls):
-	-- the game's name with a picture, how many players are in, and what to do.
+	-- A solid sign board on the wall above the door: the game's name with a picture, how many
+	-- players are in, and what to do. It's part of the wall, so signs never pile up on each other.
 	local icon = LEVEL_ICON[levelName] or ""
-	local signSpot = box(model, padCenter.X, MZ + 7.5, padCenter.Z, 0.2, 0.2, 0.2, Color3.new(), nil, INVISIBLE)
-	signSpot.CanCollide = false
-	local billboard = Instance.new("BillboardGui")
-	billboard.Size = UDim2.fromOffset(260, 130)
-	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = 90
-	billboard.LightInfluence = 0
-	billboard.Parent = signSpot
-	local card = Instance.new("Frame")
-	card.Size = UDim2.fromScale(1, 1)
-	card.BackgroundColor3 = Color3.fromRGB(250, 240, 214)
-	card.BackgroundTransparency = 0.05
-	card.Parent = billboard
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 14)
-	corner.Parent = card
-	local stroke = Instance.new("UIStroke")
-	stroke.Thickness = 4
-	stroke.Color = glow
-	stroke.Parent = card
-	local function line(text: string, y: number, height: number, color: Color3): TextLabel
-		local label = Instance.new("TextLabel")
-		label.BackgroundTransparency = 1
-		label.Position = UDim2.fromScale(0.05, y)
-		label.Size = UDim2.fromScale(0.9, height)
-		label.Font = Enum.Font.FredokaOne
-		label.TextScaled = true
-		label.TextColor3 = color
-		label.Text = text
-		label.Parent = card
-		return label
-	end
-	line(`{icon} {string.upper(title)}`, 0.05, 0.32, glow)
-	local countLabel = line("0 / 32 players", 0.4, 0.3, Color3.fromRGB(60, 42, 30))
-	local hintLabel = line("Step on the glowing square!", 0.72, 0.22, Color3.fromRGB(110, 90, 70))
+	local wall = if side == -1 then "left" else "right"
+	local along = if side == -1 then -z else z
+	local countLabel: TextLabel, hintLabel: TextLabel
+	ctx.wallItem(wall, along, MZ + 12, 0.3, function(item)
+		Craft.block(item, CFrame.identity, Vector3.new(9.4, 4.4, 0.4), L.PanelDark, M.Wood, DECOR)
+		local board = Craft.block(item, CFrame.new(0, 0, 0.25), Vector3.new(8.8, 3.8, 0.1), Color3.fromRGB(250, 240, 214), M.Plastic, DECOR)
+		Craft.block(item, CFrame.new(0, 2.15, 0.3), Vector3.new(9.4, 0.25, 0.2), glow, M.Neon, DECOR) -- glowing top edge
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Back -- Back is the +Z side, the face looking into the hallway
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 40
+		gui.LightInfluence = 0
+		gui.Parent = board
+		local function line(text: string, y: number, height: number, color: Color3): TextLabel
+			local label = Instance.new("TextLabel")
+			label.BackgroundTransparency = 1
+			label.Position = UDim2.fromScale(0.04, y)
+			label.Size = UDim2.fromScale(0.92, height)
+			label.Font = Enum.Font.FredokaOne
+			label.TextScaled = true
+			label.TextColor3 = color
+			label.Text = text
+			label.Parent = gui
+			return label
+		end
+		line(`{icon} {string.upper(title)}`, 0.04, 0.36, glow)
+		countLabel = line("0 / 32 players", 0.42, 0.3, Color3.fromRGB(60, 42, 30))
+		hintLabel = line("Step on the glowing square!", 0.74, 0.22, Color3.fromRGB(110, 90, 70))
+	end)
 
 	-- The waiting room behind the wall.
 	local inner = side * (W / 2 + 4) -- just past the lobby's outer wall
@@ -346,21 +340,21 @@ local function buildRoomEntry(ctx, side: number, z: number, number: number, leve
 	-- Rows of chairs facing the screen.
 	local seats = {}
 	for row = 1, SEAT_ROWS do
-		local x = ctx.O.X + inner + side * (2.5 + row * 4)
+		local x = ctx.O.X + inner + side * (1.5 + row * 3)
 		for i = 1, SEATS_PER_ROW do
-			local seatZ = center.Z - (SEATS_PER_ROW - 1) * 0.675 + (i - 1) * 1.35
+			local seatZ = center.Z - (SEATS_PER_ROW - 1) * 0.85 + (i - 1) * 1.7
 			local spot = Vector3.new(x, center.Y + 1.1, seatZ)
 			local facing = CFrame.lookAt(spot, spot + Vector3.new(side, 0, 0))
 			local seat = Instance.new("Seat")
 			seat.Name = "WaitSeat"
-			seat.Size = Vector3.new(1.2, 0.4, 1.2)
+			seat.Size = Vector3.new(1.6, 0.5, 1.6)
 			seat.CFrame = facing
 			seat.Anchored = true
 			seat.Color = L.Velvet
 			seat.Material = M.Felt
 			seat.TopSurface = Enum.SurfaceType.Smooth
 			seat.Parent = model
-			Craft.block(decor, facing * CFrame.new(0, 0.8, 0.72), Vector3.new(1.2, 1.6, 0.12), L.Velvet, M.Felt, DECOR)
+			Craft.block(decor, facing * CFrame.new(0, 1, 0.95), Vector3.new(1.6, 2, 0.12), L.Velvet, M.Felt, DECOR)
 			Craft.block(decor, facing * CFrame.new(0, -0.6, 0), Vector3.new(0.3, 0.8, 0.3), L.Brass, M.Metal, DECOR)
 			table.insert(seats, seat)
 		end
@@ -607,6 +601,20 @@ function HotelLobby.build()
 			light.Brightness = Config.Mood.fillLight
 			light.Shadows = false
 			light.Parent = holder
+		end
+	end
+
+	-- Make everything you can see solid: furniture, wall paneling, doors, the desk... so nobody walks
+	-- through walls or furniture. Only see-through bits, tiny details, the glowing join pads and the
+	-- chairs are left alone.
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and not part.CanCollide and part.Transparency < 0.5 and not part:IsA("Seat") and not string.find(part.Name, "Pad") then
+			local size = part.Size
+			local biggest = math.max(size.X, size.Y, size.Z)
+			local middle = size.X + size.Y + size.Z - biggest - math.min(size.X, size.Y, size.Z)
+			if biggest >= 3 and middle >= 1.5 then
+				part.CanCollide = true
+			end
 		end
 	end
 

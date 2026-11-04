@@ -3,6 +3,19 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-03 (final) — Matthew (with Claude)
+Same branch.
+- **Room signs are solid wall boards now**, not floating cards (the always-on-top cards stacked on top of each
+  other from the lobby floor). Each sits on the wall above its door with a glowing top edge: icon + name, count,
+  and the hint. `HotelLobby.buildRoomEntry`.
+- **No walking through things:** most lobby furniture and wall decoration was built non-solid (desk, fireplace,
+  piano, elevators, paneling, door frames...). `HotelLobby.build` now makes every visible part with at least
+  3 x 1.5 studs of face solid, except join pads and chairs.
+- **Bigger doll:** `Config.Doll.Scale` 0.6 -> 0.85 (about 5 studs with head and hat), `WalkSpeed` 10 -> 13,
+  `JumpHeight` 4.3 -> 6. Waiting rooms now have 6 rows of 6 larger chairs (36 seats).
+- **Checked:** playtest: 0 floating signs, 10 wall signs, reception desk solid, joined room 204 and seated,
+  no new console errors.
+
 ## 2026-11-03 (latest) — Matthew (with Claude)
 Same branch.
 - **Waiting-room flicker fixed:** each room's walls were in the same place as the lobby's outer wall (and the next
