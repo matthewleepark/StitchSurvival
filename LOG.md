@@ -3,6 +3,16 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-03 (evening) — Matthew (with Claude)
+Same branch. **Rosie, this changes your mood numbers, please check you're happy with the darkness:**
+- **Door glitch fixed** (`Levels/HotelLobby.luau`): the front-wall wainscot ran behind the entrance and poked
+  through the doors; the front wall now gets two runs of paneling with a 15-stud gap for the doors.
+- **Brighter lobby, still spooky** (`Config.Mood`): ambient/outdoor ambient up, moonlight 0.35 -> 1, exposure
+  -0.2 -> 0.15, thinner fog and haze. New `lampBrightness` (2.5x) and `lampRange` (1.4x) boost every lobby lamp
+  (`HotelProps.luau`), and new `fillLight` adds 30 soft, non-flickering hidden lights over the floor and balconies
+  (13 -> 43 lights). Turn any of these down for a darker hotel.
+- **Checked:** luau-lsp clean; playtest shows nothing overlapping the door, 43 lights, no new console errors.
+
 ## 2026-11-03 (later) — Matthew (with Claude)
 Same branch, `matthew/admin-and-doll`. **Rosie, these touch your files, please review:**
 - **Shoulder flashlight:** `Doll.luau` straps a small flashlight to the right shoulder (everyone sees it);

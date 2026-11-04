@@ -43,8 +43,8 @@ end
 local function addLight(part: BasePart, color: Color3, range: number, brightness: number)
 	local light = Instance.new("PointLight")
 	light.Color = color
-	light.Range = range
-	light.Brightness = brightness
+	light.Range = range * Config.Mood.lampRange
+	light.Brightness = brightness * Config.Mood.lampBrightness
 	light.Shadows = false
 	Craft.tag(light, "FlickerLight") -- Mood.luau makes these stutter now and then
 	light.Parent = part
@@ -211,7 +211,8 @@ function Props.sconce(parent: Instance, cframe: CFrame)
 	Craft.lamp(m, Vector3.zero)
 	for _, descendant in m:GetDescendants() do
 		if descendant:IsA("PointLight") then
-			descendant.Brightness = 0.5
+			descendant.Brightness = 0.5 * Config.Mood.lampBrightness
+			descendant.Range *= Config.Mood.lampRange
 			descendant.Shadows = false
 			Craft.tag(descendant, "FlickerLight")
 		end

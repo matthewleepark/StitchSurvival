@@ -137,15 +137,19 @@ Config.Colors = {
 -- Horror look: dark and cold with warm pools of light around the lamps. All of this is applied by
 -- Mood.luau when the server starts (Studio's Lighting panel will look bright until you press Play).
 Config.Mood = {
-	ambient = Color3.fromRGB(30, 34, 48), -- indoor fill light; raise it if it's too dark to play
-	outdoorAmbient = Color3.fromRGB(28, 34, 52),
-	brightness = 0.35, -- moonlight strength
+	-- Dark and creepy, but bright enough to see the room. Lower these for a scarier, darker hotel.
+	ambient = Color3.fromRGB(78, 72, 82), -- indoor fill light; raise it if it's too dark to play
+	outdoorAmbient = Color3.fromRGB(70, 72, 92),
+	brightness = 1, -- moonlight strength
 	clockTime = 0, -- midnight
-	exposure = -0.2,
-	fogColor = Color3.fromRGB(10, 12, 18),
-	fogStart = 30,
-	fogEnd = 240,
-	hazeDensity = 0.3, -- 0 to 1
+	exposure = 0.15,
+	fogColor = Color3.fromRGB(24, 24, 32),
+	fogStart = 70,
+	fogEnd = 420,
+	hazeDensity = 0.15, -- 0 to 1
+	lampBrightness = 2.5, -- every lobby lamp's brightness is multiplied by this
+	lampRange = 1.4, -- ... and how far its light reaches
+	fillLight = 0.9, -- soft hidden lights spread over the lobby so no area is pitch black (0 = off)
 	saturation = -0.3, -- drained colors
 	contrast = 0.12,
 	tint = Color3.fromRGB(205, 220, 235),

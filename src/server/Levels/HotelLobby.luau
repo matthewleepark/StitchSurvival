@@ -132,7 +132,16 @@ local function buildWalls(ctx)
 	local lengths = { back = W, front = W, left = D, right = D }
 	for wall, length in lengths do
 		wallpaper(ctx, wall, length)
-		wainscot(ctx, wall, 0, 0, length)
+		if wall == "front" then
+			-- Two runs of paneling with a gap for the entrance doors, so nothing pokes through them.
+			local doorGap = 15
+			local side = (length - doorGap) / 2
+			for _, sign in { -1, 1 } do
+				wainscot(ctx, wall, sign * (doorGap / 2 + side / 2), 0, side)
+			end
+		else
+			wainscot(ctx, wall, 0, 0, length)
+		end
 		crown(ctx, wall, length)
 	end
 
@@ -455,6 +464,32 @@ function HotelLobby.build()
 	buildEntrance(ctx)
 
 	local machine = Pod.buildGearMachine(model, ctx.at(37, 0, -35))
+
+	-- Soft hidden fill lights in a grid over the floor and along the balcony corridors, so every
+	-- area can be seen. They don't flicker; the visible lamps still do.
+	if Config.Mood.fillLight > 0 then
+		local spots = {}
+		for _, x in { -44, -22, 0, 22, 44 } do
+			for _, z in { -30, -10, 10, 30 } do
+				table.insert(spots, ctx.at(x, 11, z))
+			end
+		end
+		for _, side in { -1, 1 } do
+			for _, z in { -32, -16, 0, 16, 32 } do
+				table.insert(spots, ctx.at(side * 50, ctx.MZ + 9, z))
+			end
+		end
+		for _, spot in spots do
+			local holder = box(decor, spot.X, spot.Y, spot.Z, 0.2, 0.2, 0.2, Color3.new(), nil, INVISIBLE)
+			holder.CanCollide = false
+			local light = Instance.new("PointLight")
+			light.Color = Color3.fromRGB(255, 214, 170)
+			light.Range = 26
+			light.Brightness = Config.Mood.fillLight
+			light.Shadows = false
+			light.Parent = holder
+		end
+	end
 
 	-- Tiny details don't need to cast shadows; skipping them is a big saving with hundreds of parts.
 	for _, part in model:GetDescendants() do
