@@ -374,6 +374,11 @@ end
 
 local BUILTIN = "rbxasset://sounds/"
 
+-- Background music (menu, lobby and level tracks). Off for now; set enabled = true to bring it back.
+Config.Music = {
+	enabled = false,
+}
+
 Config.Sounds = {
 	-- Music + background ------------------------------------------------------
 	MenuMusic = { id = "", volume = 0.4, looped = true }, -- bouncy, slightly out-of-tune acoustic guitar + playful marimba
