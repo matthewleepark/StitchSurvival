@@ -379,6 +379,14 @@ Config.Music = {
 	enabled = false,
 }
 
+-- Jump and landing sounds. Both are off: the jump boing and the pouf on every landing were
+-- annoying (the jump sound sat on a reverb that made it worse). Footsteps, oofs and the pop sound
+-- are separate and stay on.
+Config.CharacterAudio = {
+	jumping = false,
+	softLandings = false,
+}
+
 Config.Sounds = {
 	-- Music + background ------------------------------------------------------
 	MenuMusic = { id = "", volume = 0.4, looped = true }, -- bouncy, slightly out-of-tune acoustic guitar + playful marimba
