@@ -271,6 +271,10 @@ Config.LowHealth = 0.4
 -- (The code still calls these "gear" internally: Config.Gear, the "Gear" attribute.)
 
 Config.DefaultOxygen = 10 -- seconds of air everyone has; the air passive adds to this
+-- Air only runs out, and you only drown, while your head is fully under: its centre this many studs
+-- below the surface (a head is about 2 studs tall, so 1 is "the top of the head is under"). Floating,
+-- treading water or bobbing never counts.
+Config.DrownDepth = 1
 Config.Gear = {
 	{ name = "Lucky Thread", rarity = "Common", weight = 34, icon = "\u{1F9F5}", passives = { scoreBonus = 0.15 } },
 	{ name = "Quick Laces", rarity = "Common", weight = 26, icon = "\u{1F45F}", passives = { speed = 2 } },
