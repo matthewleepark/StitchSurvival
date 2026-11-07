@@ -261,7 +261,9 @@ function ClockworkShark:pop(player: Player)
 	if not humanoid then
 		return
 	end
-	Util.kill(humanoid)
+	if Util.kill(humanoid) then
+		Remotes.fire(player, "Jumpscare", {}) -- the victim's screen only
+	end
 	Score.breakCombo(player)
 	Util.playSound("Chomp", self.head)
 	self.jawOpen = 0

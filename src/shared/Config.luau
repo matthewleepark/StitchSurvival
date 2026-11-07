@@ -41,6 +41,12 @@ Config.Chaos = {
 -- Shark Survival: the shark switches from patrolling to hunting when a player is this close.
 Config.SharkHuntRadius = 45
 
+-- The jumpscare on your own screen when a shark eats you (client/Jumpscare.luau). The sound is
+-- Config.Sounds.JumpscareSting.
+Config.Jumpscare = {
+	seconds = 1.6, -- how long it plays (you are already dead underneath it; respawn takes 3 s)
+}
+
 -- Scoring: each score bubble is worth 10 points. Raise MaxMultiplier (e.g. to 8) to turn on
 -- LBP-style combos, where grabbing bubbles quickly multiplies their value.
 
@@ -451,6 +457,9 @@ Config.Sounds = {
 	RaftSqueak = { id = "", volume = 0.5, range = 50 }, -- damp squeak-crunch of foam when you land on a raft
 	PlatformSlosh = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.4, speed = 0.7, range = 60 }, -- wet slosh-muffle as a raft edge dips under
 	Splash = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.7, range = 120 },
+
+	-- Played on the victim's own screen when a shark eats them (client/Jumpscare.luau).
+	JumpscareSting = { id = "rbxassetid://1841353939", volume = 1 }, -- "Rising Fear Hit 3" (APM Music, free), 4 s: peaks at 0.1 s and fades
 
 	-- Players ----------------------------------------------------------------------------------
 	Jump = { id = "", fallback = BUILTIN .. "action_jump.mp3", volume = 0.5, speed = 1.5, range = 60 }, -- tight boing / plucked guitar string
