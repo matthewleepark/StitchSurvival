@@ -220,6 +220,111 @@ function MazeLayout.generate(N: number, floors: number, rampsPerFloor: number, l
 	error("MazeLayout: could not build a connected maze")
 end
 
+-- Picks `perFloor` rooms on every floor: cells with a door on their doorway(s). Dead ends make the best
+-- rooms (one way in); if a floor has too few, corridor cells with two doorways are used too. A room may get
+-- a second door onto another corridor (`passThroughChance`), which is an escape route and a loop.
+-- `reserved[floor]` is a set of cells that must stay plain corridor (e.g. the killer's start).
+-- Fills layout.floorData[f].door[edgeKey] = { room = cell, other = cell } and layout.rooms.
+function MazeLayout.placeRooms(layout, rng: Random, perFloor: number, passThroughChance: number, reserved)
+	local N = layout.N
+	local rooms = {}
+	layout.rooms = rooms
+	for f = 0, layout.floors - 1 do
+		local data = layout.floorData[f]
+		data.door = {}
+
+		-- Which cells may not be rooms: ramp corridors, where a ramp starts or arrives, holes, reserved cells.
+		local blocked = {}
+		for c in data.void do
+			blocked[c] = true
+		end
+		for c in data.chain do
+			blocked[c] = true
+		end
+		for _, ramp in layout.ramps do
+			if ramp.floor == f then
+				blocked[ramp.cells[0]] = true
+			elseif ramp.floor == f - 1 then
+				blocked[ramp.cells[5]] = true
+			end
+		end
+		for c in (reserved and reserved[f]) or {} do
+			blocked[c] = true
+		end
+
+		-- Each cell's open doorways.
+		local openTo = {}
+		for key in data.open do
+			local a, b = key // KEY, key % KEY
+			openTo[a] = openTo[a] or {}
+			openTo[b] = openTo[b] or {}
+			table.insert(openTo[a], b)
+			table.insert(openTo[b], a)
+		end
+
+		local deadEnds, corridors = {}, {}
+		for c = 0, N * N - 1 do
+			if not blocked[c] and openTo[c] then
+				if #openTo[c] == 1 then
+					table.insert(deadEnds, c)
+				elseif #openTo[c] == 2 then
+					table.insert(corridors, c)
+				end
+			end
+		end
+		shuffle(deadEnds, rng)
+		shuffle(corridors, rng)
+
+		local chosen, order = {}, {}
+		local function touchesRoom(c: number): boolean
+			local i, j = c % N, c // N
+			for _, n in { if i > 0 then c - 1 else -1, if i < N - 1 then c + 1 else -1, if j > 0 then c - N else -1, if j < N - 1 then c + N else -1 } do
+				if n >= 0 and chosen[n] then
+					return true
+				end
+			end
+			return false
+		end
+		for _, list in { deadEnds, corridors } do
+			for _, c in list do
+				if #order >= perFloor then
+					break
+				end
+				if not chosen[c] and not touchesRoom(c) then
+					chosen[c] = true
+					table.insert(order, c)
+				end
+			end
+		end
+
+		for _, c in order do
+			local doors = {}
+			for _, other in openTo[c] do
+				table.insert(doors, other)
+			end
+			if #doors == 1 and rng:NextNumber() < passThroughChance then
+				local i, j = c % N, c // N
+				local options = {}
+				for _, n in { if i > 0 then c - 1 else -1, if i < N - 1 then c + 1 else -1, if j > 0 then c - N else -1, if j < N - 1 then c + N else -1 } do
+					if n >= 0 and not blocked[n] and not chosen[n] and not data.open[edgeKey(c, n)] then
+						table.insert(options, n)
+					end
+				end
+				if #options > 0 then
+					local n = options[rng:NextInteger(1, #options)]
+					data.open[edgeKey(c, n)] = true
+					table.insert(doors, n)
+				end
+			end
+			for _, other in doors do
+				data.door[edgeKey(c, other)] = { room = c, other = other }
+			end
+			table.insert(rooms, { floor = f, cell = c, doors = doors })
+		end
+	end
+	return rooms
+end
+
 -- Walks every doorway and ramp from the middle of the ground floor. Returns whether every cell on every
 -- floor was reached, how many were, and how many there are.
 function MazeLayout.validate(layout): (boolean, number, number)

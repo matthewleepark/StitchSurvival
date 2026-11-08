@@ -16,6 +16,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Craft = require(script.Parent.Parent.Craft)
 local Remotes = require(script.Parent.Parent.Remotes)
 local Util = require(script.Parent.Parent.Util)
+local KillerRooms = require(script.Parent.KillerRooms)
 local MazeLayout = require(script.Parent.MazeLayout)
 
 local Colors = Config.Colors
@@ -62,6 +63,12 @@ function KillerMaze.build(def)
 	local seed = map.seed or math.random(1, 2 ^ 30)
 	local layout = MazeLayout.generate(N, floors, map.rampsPerFloor, map.loopChance, Random.new(seed))
 	local rng = Random.new(seed + 1)
+	local killerCell = (N // 2) + (N // 2) * N
+	MazeLayout.placeRooms(layout, rng, Config.KillerHotel.rooms.perFloor, Config.KillerHotel.rooms.passThroughChance, { [0] = { [killerCell] = true } })
+
+	-- The stage table is filled in at the end; doors and wardrobes keep hold of it for the whole round.
+	local stage = { frozen = false }
+	KillerRooms.setup(stage)
 
 	local model = Instance.new("Model")
 	model.Name = "KillerHotel"
@@ -111,6 +118,26 @@ function KillerMaze.build(def)
 	-- Walls: two bands per wall segment (a darker lower half, a lighter upper half).
 	local wallHeight = H - SLAB
 	local bandHeight = wallHeight / 2
+	-- A doorway where a room meets a corridor: the maze leaves that edge open, and a door goes in it.
+	local function doorway(f: number, c: number, n: number, x: number, z: number, alongZ: boolean)
+		local door = layout.floorData[f].door[MazeLayout.edgeKey(c, n)]
+		if not door then
+			return
+		end
+		local direction = if alongZ then Vector3.xAxis else Vector3.zAxis -- from c toward n
+		local style = STYLES[f % #STYLES + 1]
+		KillerRooms.buildDoorway(stage, breakables, {
+			center = at(x, f * H, z),
+			outDir = if door.room == c then direction else -direction,
+			alongZ = alongZ,
+			cell = cell,
+			wall = WALL,
+			wallHeight = wallHeight,
+			frameColor = style.high,
+			doorColor = Colors.Wood,
+			rng = rng,
+		})
+	end
 	local function wallSegment(parent: Instance, f: number, x: number, z: number, alongZ: boolean, breakable: boolean)
 		local style = STYLES[f % #STYLES + 1]
 		local length = cell + WALL
@@ -127,11 +154,19 @@ function KillerMaze.build(def)
 		for j = 0, N - 1 do
 			for i = 0, N - 1 do
 				local c = i + j * N
-				if i + 1 < N and MazeLayout.hasWall(layout, f, c, c + 1) then
-					wallSegment(breakables, f, -W / 2 + (i + 1) * cell, cellX(j), true, true)
+				if i + 1 < N then
+					if MazeLayout.hasWall(layout, f, c, c + 1) then
+						wallSegment(breakables, f, -W / 2 + (i + 1) * cell, cellX(j), true, true)
+					else
+						doorway(f, c, c + 1, -W / 2 + (i + 1) * cell, cellX(j), true)
+					end
 				end
-				if j + 1 < N and MazeLayout.hasWall(layout, f, c, c + N) then
-					wallSegment(breakables, f, cellX(i), -W / 2 + (j + 1) * cell, false, true)
+				if j + 1 < N then
+					if MazeLayout.hasWall(layout, f, c, c + N) then
+						wallSegment(breakables, f, cellX(i), -W / 2 + (j + 1) * cell, false, true)
+					else
+						doorway(f, c, c + N, cellX(i), -W / 2 + (j + 1) * cell, false)
+					end
 				end
 			end
 		end
@@ -141,6 +176,47 @@ function KillerMaze.build(def)
 			wallSegment(model, f, W / 2, cellX(k), true, false)
 			wallSegment(model, f, cellX(k), -W / 2, false, false)
 			wallSegment(model, f, cellX(k), W / 2, false, false)
+		end
+	end
+
+	-- Furniture: each room gets a wardrobe to hide in (sometimes), a bed and a crate, against the walls that
+	-- do not have a door, so the way in stays clear.
+	local inner = cell / 2 - WALL / 2 -- how far the inside face of a wall is from the middle of a cell
+	for _, room in layout.rooms do
+		local f, c = room.floor, room.cell
+		local i, j = c % N, c // N
+		local data = layout.floorData[f]
+		local sides = {}
+		for _, side in { { 1, 0, if i + 1 < N then c + 1 else -1 }, { -1, 0, if i > 0 then c - 1 else -1 }, { 0, 1, if j + 1 < N then c + N else -1 }, { 0, -1, if j > 0 then c - N else -1 } } do
+			if side[3] < 0 or not data.door[MazeLayout.edgeKey(c, side[3])] then
+				table.insert(sides, side)
+			end
+		end
+		for k = #sides, 2, -1 do
+			local pick = rng:NextInteger(1, k)
+			sides[k], sides[pick] = sides[pick], sides[k]
+		end
+		local middle = at(cellX(i), f * H, cellX(j))
+		local style = STYLES[f % #STYLES + 1]
+		local nextSide = 1
+		if rng:NextNumber() < Config.KillerHotel.rooms.wardrobeChance and sides[nextSide] then
+			local d = sides[nextSide]
+			nextSide += 1
+			local direction = Vector3.new(d[1], 0, d[2])
+			KillerRooms.buildWardrobe(stage, breakables, middle + direction * (inner - 1.6), -direction, d[1] ~= 0)
+		end
+		if sides[nextSide] then
+			local d = sides[nextSide]
+			nextSide += 1
+			local direction = Vector3.new(d[1], 0, d[2])
+			local lateral = Vector3.new(d[2], 0, d[1]) * (if rng:NextNumber() < 0.5 then 3.5 else -3.5)
+			KillerRooms.buildBed(breakables, middle + direction * (inner - 4.6) + lateral, d[1] ~= 0, style.low:Lerp(Colors.Felt, 0.5))
+		end
+		if sides[nextSide] then
+			local d = sides[nextSide]
+			local direction = Vector3.new(d[1], 0, d[2])
+			local lateral = Vector3.new(d[2], 0, d[1]) * (if rng:NextNumber() < 0.5 then 4.5 else -4.5)
+			KillerRooms.buildCrate(breakables, middle + direction * (inner - 2.2) + lateral)
 		end
 	end
 
@@ -210,7 +286,6 @@ function KillerMaze.build(def)
 	local function cellPosition(f: number, c: number): Vector3
 		return at(cellX(c % N), f * H + 3, cellX(c // N))
 	end
-	local killerCell = (N // 2) + (N // 2) * N
 	local killerSpawn = CFrame.new(cellPosition(0, killerCell))
 	local candidates = {}
 	for f = 0, floors - 1 do
@@ -248,36 +323,34 @@ function KillerMaze.build(def)
 		table.insert(spawns, CFrame.new(cellPosition(spot.floor, spot.cell)))
 	end
 
-	print(`[KillerHotel] maze seed {seed}: {#breakables:GetChildren()} breakable parts, {#model:GetDescendants()} instances`)
+	print(`[KillerHotel] maze seed {seed}: {#layout.rooms} rooms, {#stage.doors} doors, {#breakables:GetChildren()} breakable parts, {#model:GetDescendants()} instances`)
 
-	return {
-		model = model,
-		breakables = breakables,
-		origin = O,
-		width = W,
-		depth = W,
-		floors = floors,
-		floorHeight = H,
-		roofY = roofY,
-		spawns = spawns,
-		killerSpawn = killerSpawn,
-		killY = O.Y - 25,
-		seed = seed,
-		layout = layout,
-		-- Lamps whose ceiling tile has been blown away go with it, so nothing hangs in mid-air.
-		cleanDecor = function()
-			for index = #lamps, 1, -1 do
-				local lamp = lamps[index]
-				if lamp.tile and (not lamp.tile.Parent or not lamp.tile.Anchored) then
-					for _, part in lamp.parts do
-						part:Destroy()
-					end
-					table.remove(lamps, index)
+	stage.model = model
+	stage.breakables = breakables
+	stage.origin = O
+	stage.width = W
+	stage.depth = W
+	stage.floors = floors
+	stage.floorHeight = H
+	stage.roofY = roofY
+	stage.spawns = spawns
+	stage.killerSpawn = killerSpawn
+	stage.killY = O.Y - 25
+	stage.seed = seed
+	stage.layout = layout
+	-- Lamps whose ceiling tile has been blown away go with it, so nothing hangs in mid-air.
+	stage.cleanDecor = function()
+		for index = #lamps, 1, -1 do
+			local lamp = lamps[index]
+			if lamp.tile and (not lamp.tile.Parent or not lamp.tile.Anchored) then
+				for _, part in lamp.parts do
+					part:Destroy()
 				end
+				table.remove(lamps, index)
 			end
-		end,
-		frozen = false,
-	}
+		end
+	end
+	return stage
 end
 
 return KillerMaze

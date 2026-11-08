@@ -23,6 +23,7 @@ local RoundControl = require(script.Parent.Parent.RoundControl)
 local Util = require(script.Parent.Parent.Util)
 local Bombs = require(script.Parent.Bombs)
 local KillerMaze = require(script.Parent.KillerMaze)
+local KillerRooms = require(script.Parent.KillerRooms)
 
 local KillerHotel = {}
 
@@ -202,11 +203,16 @@ function KillerHotel.finish(stage, alive: { [Player]: boolean })
 	end
 	Remotes.fireAll("Role", { role = "none" })
 	ReplicatedStorage:SetAttribute("InnocentsLeft", nil)
+	stage.releaseHidden() -- everyone climbs out of the wardrobes
 	local shield = killer and killer.Character and killer.Character:FindFirstChild("KillerShield")
 	if shield then
 		shield:Destroy()
 	end
 	return { winners = winners, text = text }
+end
+
+function KillerHotel.cleanup(stage)
+	KillerRooms.cleanup(stage)
 end
 
 -- Round over: everything stops exactly where it is.

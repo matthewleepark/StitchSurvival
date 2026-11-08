@@ -159,6 +159,26 @@ Config.KillerHotel = {
 		lampSpacing = 2, -- a ceiling lamp in every this-many-th cell, each way
 		seed = nil, -- set a number to get the same maze every round (nil = a new one each round)
 	},
+	-- Rooms: cells with a door (dead ends mostly), furnished, some with a wardrobe to hide in.
+	rooms = {
+		perFloor = 10,
+		passThroughChance = 0.4, -- chance a room gets a second door onto another corridor (a way out, and a loop)
+		wardrobeChance = 0.6, -- chance a room has a wardrobe to hide in
+	},
+	-- Doors swing OUT of the room with a kick. Hold the open key to kick one open or shut; from inside,
+	-- the lock key locks it. The killer breaks a locked door by holding the open key for breakSeconds
+	-- (a loud pounding the whole time) or blows it up with a bomb. (E is taken: it grabs things.)
+	doors = {
+		width = 6, -- studs of doorway
+		height = 11,
+		openAngle = 100, -- degrees it swings out (it overshoots a little and bounces back)
+		openHold = 0.15, -- seconds to hold the open key
+		breakSeconds = 6, -- how long the killer must hold to break a locked door
+		poundEvery = 0.8, -- seconds between pounds while the killer breaks a door
+		closeClearance = 2.5, -- a door will not shut while someone stands in its doorway (this close to the wall line)
+		openKey = Enum.KeyCode.F, -- (gamepad: Y)
+		lockKey = Enum.KeyCode.G, -- (gamepad: left bumper)
+	},
 }
 
 -- Game rooms: the numbered guest-room doors on the hotel balconies. Walk up and hold E to join a
@@ -480,6 +500,11 @@ Config.Sounds = {
 	VelcroRip = { id = "", volume = 0.8, range = 150 }, -- riiiiip of industrial Velcro as walls tear loose
 	BlockBreak = { id = "", volume = 0.6, range = 100 }, -- dry wood snapping + phonebook ripping
 	DebrisThud = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.8, speed = 0.5, range = 100 }, -- heavy hollow thud-clatter
+	DoorKick = { id = "rbxassetid://111763202035471", volume = 1, speed = 0.8, range = 90 }, -- a door kicked open: a hard BANG
+	DoorClose = { id = "rbxassetid://111763202035471", volume = 0.55, range = 60 }, -- a door shut
+	DoorLock = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.5, speed = 3, range = 40 }, -- deadbolt click
+	DoorPound = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 1, speed = 0.45, range = 110 }, -- the killer pounding on a locked door
+	WardrobeCreak = { id = "rbxassetid://125209584906878", volume = 0.5, range = 30 }, -- a wardrobe door creaking
 	DebrisWhistle = { id = "", volume = 0.5, range = 80 }, -- descending fshhhhh as a block falls through the air
 	Rumble = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.7, speed = 0.3, range = 60 }, -- low grrrr-whump through the floor
 	Gasp = { id = "", fallback = BUILTIN .. "ouch.ogg", volume = 0.5, speed = 1.3, range = 50 }, -- quick airless fabric gasp "uh!" while burning
