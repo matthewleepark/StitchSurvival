@@ -15,6 +15,7 @@
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Craft = require(script.Parent.Parent.Craft)
@@ -104,6 +105,37 @@ local function collapse(block: BasePart, origin: Vector3)
 	end)
 
 	Debris:AddItem(block, 8)
+end
+
+-- A falling bomb smashes through the roof: when it reaches the roof, the roof tiles right under it
+-- shatter and it drops on into the building.
+function Bombs.punchThrough(stage, bomb: BasePart, roofTop: number)
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { stage.breakables }
+	local connection
+	connection = RunService.Heartbeat:Connect(function()
+		if not bomb.Parent or stage.frozen then
+			connection:Disconnect()
+			return
+		end
+		if bomb.Position.Y > roofTop + 3.2 then
+			return -- still falling toward the roof
+		end
+		connection:Disconnect()
+		local hole = Vector3.new(bomb.Position.X, roofTop - 1, bomb.Position.Z)
+		local smashed = false
+		for _, part in workspace:GetPartBoundsInBox(CFrame.new(hole), Vector3.new(6, 3, 6), params) do
+			if part.Name == "RoofTile" and part.Parent and part.Anchored then
+				shatter(part, hole + Vector3.new(0, 4, 0))
+				smashed = true
+			end
+		end
+		if smashed then
+			Util.soundAt("BlockBreak", hole)
+			Remotes.fireAll("Rumble", { position = hole })
+		end
+	end)
 end
 
 -- Breaks one block the way a blast would: it rips loose and falls (used by the chaos sharks as

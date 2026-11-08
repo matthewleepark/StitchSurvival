@@ -3,6 +3,14 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 (roof bombs) — Matthew (with Claude)
+Same branch.
+- **Bombs fall through the roof:** the Bomb Hotel roof is now breakable `RoofTile`s (8x8). Bombs spawn 25 studs above
+  a random spot over the whole roof; when one reaches the roof, `Bombs.punchThrough` (hooked in via
+  `Bombs.plant`'s `onBomb` option, so Killer Hotel is untouched) shatters the tiles under it and it drops into the
+  building. `Config.PlantedBombInterval` 15 -> 5 seconds (still halves by the end of the round).
+- **Checked:** luau-lsp clean. **Not checked in Studio:** the Studio MCP connection is down.
+
 ## 2026-11-08 — Matthew (with Claude)
 Branch `matthew/shark-redesign` (from main after PR #3).
 - **New shark body** (`Levels/SharkModel.luau`), shared by the Shark Survival shark (`ClockworkShark.luau`) and the

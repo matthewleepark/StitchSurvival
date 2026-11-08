@@ -17,10 +17,11 @@ Config.ResultsTime = 7
 -- World physics: Roblox's normal gravity. (It was 35, a floaty toybox, which made jumps huge.)
 Config.Gravity = 196.2
 
--- Bomb Hotel: every 15 seconds a bomb is dropped at a random spot inside the hotel. Its timer
--- ticks twice a second, doubles speed for the last 5 seconds, then it explodes: everything
--- within 25 studs (floor blocks, pillars, ramps) is ripped loose and thrown outward.
-Config.PlantedBombInterval = 15 -- at the start; it shortens to half this by the end of the round
+-- Bomb Hotel: bombs keep falling out of the sky onto the hotel roof, each at a random spot. A bomb
+-- smashes a hole through the roof where it hits, drops into the hotel and lands on whatever floor is
+-- below. Its timer ticks twice a second, doubles speed for the last 5 seconds, then it explodes:
+-- everything within 25 studs (floor blocks, pillars, ramps) is ripped loose and thrown outward.
+Config.PlantedBombInterval = 5 -- seconds between bombs at the start; it shortens to half this by the end
 Config.PlantedBombFuse = 12
 Config.PlantedBombBlastRadius = 25
 
