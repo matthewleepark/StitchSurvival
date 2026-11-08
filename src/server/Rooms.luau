@@ -14,6 +14,23 @@ local Remotes = require(script.Parent.Remotes)
 
 local Rooms = {}
 
+-- Players a room's level needs before the countdown starts: the level's own `minPlayers`, else Config.MinPlayers.
+-- (Killer Hotel needs a killer and someone to hunt, unless Config.KillerHotel.soloTest is on.)
+function Rooms.minPlayers(levelName: string): number
+	for _, def in Config.Levels do
+		if def.name == levelName then
+			local minimum = (def :: any).minPlayers
+			if minimum then
+				if levelName == "KillerHotel" and Config.KillerHotel.soloTest then
+					return 1
+				end
+				return minimum
+			end
+		end
+	end
+	return Config.MinPlayers
+end
+
 export type Room = {
 	number: number,
 	level: string,
@@ -47,7 +64,7 @@ local function refresh(room: Room)
 		room.hintLabel.Text = if full then "FULL - try another room" else "Step on the glowing square!"
 	end
 	if room.screenLabel then
-		local need = math.max(0, Config.MinPlayers - count)
+		local need = math.max(0, Rooms.minPlayers(room.level) - count)
 		local status = if need > 0 then `Waiting for {need} more...` else "Starting soon!"
 		room.screenLabel.Text = `{room.title}\n{count} / {capacity} players\n{status}`
 	end
@@ -205,7 +222,7 @@ end
 function Rooms.pick(): Room?
 	local best: Room? = nil
 	for _, room in rooms do
-		if #room.members >= Config.MinPlayers and (not best or room.waitingSince < best.waitingSince) then
+		if #room.members >= Rooms.minPlayers(room.level) and (not best or room.waitingSince < best.waitingSince) then
 			best = room
 		end
 	end

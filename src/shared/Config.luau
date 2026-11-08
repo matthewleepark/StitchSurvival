@@ -116,21 +116,54 @@ Config.Levels = {
 		height = 48,
 		waterDepth = 20,
 	},
+	-- Killer Hotel: one killer hunts everyone else with bombs (see Config.KillerHotel below).
+	-- weight 0: a "Random" admin start never picks it; it is played from its own guest-room doors.
+	{
+		name = "KillerHotel",
+		title = "Killer Hotel",
+		weight = 0,
+		minPlayers = 2, -- a killer needs someone to hunt (Config.KillerHotel.soloTest overrides it)
+		roundTime = 600, -- 10 minutes
+		origin = Vector3.new(0, 20, 1500),
+		width = 96,
+		depth = 96,
+		floors = 5,
+		floorHeight = 16,
+		height = 5 * 16 + 20,
+	},
+}
+
+-- Killer Hotel: one KILLER hunts the INNOCENTS with bombs. The killer wins by getting everyone before
+-- the timer (Config.Levels roundTime) runs out; the innocents win if any of them is still alive.
+-- Innocents never see a bomb's timer; they only hear its tick (Config.Sounds.BombTick range) up close.
+Config.KillerHotel = {
+	killerPityWeight = 0.5, -- each round you were not the killer adds this much to your odds next time (1 = base)
+	soloTest = false, -- true: a lone player becomes the killer (for testing only; normal rounds need minPlayers)
+	fuse = 8, -- seconds from a dropped bomb to the blast
+	startBombs = 3, -- bombs the killer starts with
+	carryLimit = 3, -- the most bombs the killer can hold
+	restockSeconds = 25, -- a new bomb every this many seconds, up to carryLimit
+	dropCooldown = 2, -- seconds between drops
+	dropAhead = 4, -- studs in front of the killer that the bomb lands
+	dropKey = Enum.KeyCode.Q, -- (gamepad: X; touch gets an on-screen button)
+	killerImmuneToOwnBombs = true, -- the killer takes no damage from blasts, fire or falling blocks (an invisible ForceField), so their own bombs can't end the round
+	killerRescue = true, -- the killer's own blasts can drop the floor away; falling out puts them back on the top floor instead of ending the round
+	roleBannerSeconds = 5, -- how long the "you are the killer / an innocent" banner stays up
 }
 
 -- Game rooms: the numbered guest-room doors on the hotel balconies. Walk up and hold E to join a
 -- room's queue (again to leave). Rounds run one at a time, so rooms take turns: the room that has
 -- been waiting longest (with at least MinPlayers) plays its level next.
--- Also set Max Players to 32 in Studio: Home > Game Settings > Basic Info.
+-- Max Players in Studio (Home > Game Settings > Basic Info) should match `capacity` below.
 Config.Rooms = {
-	capacity = 32,
+	capacity = 16, -- also set Max Players to 16 in Studio: Home > Game Settings > Basic Info
 	-- room number -> level name from Config.Levels. Odd numbers are the left balcony, even the right.
 	levels = {
 		[201] = "BombHotel",
 		[203] = "BombHotel",
 		[205] = "BombHotel",
-		[207] = "BombHotel",
-		[209] = "BombHotel",
+		[207] = "KillerHotel",
+		[209] = "KillerHotel",
 		[202] = "SharkSurvival",
 		[204] = "SharkSurvival",
 		[206] = "SharkSurvival",

@@ -29,6 +29,11 @@ local adminCommand = Instance.new("RemoteEvent")
 adminCommand.Name = "AdminCommand"
 adminCommand.Parent = folder
 
+-- Killer Hotel: the killer asks to drop a bomb. The server checks everything (role, stock, cooldown).
+local dropBomb = Instance.new("RemoteEvent")
+dropBomb.Name = "DropBomb"
+dropBomb.Parent = folder
+
 folder.Parent = ReplicatedStorage
 
 local Remotes = {
@@ -36,6 +41,7 @@ local Remotes = {
 	EquipGear = equipGear,
 	RedeemCode = redeemCode,
 	AdminCommand = adminCommand,
+	DropBomb = dropBomb,
 }
 
 function Remotes.fireAll(kind: string, data: any?)

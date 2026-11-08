@@ -242,8 +242,8 @@ end
 -- A game room: the door, a glowing pad on the floor in front of it with floating text, and the
 -- bus behind the wall with rows of seats (Rooms.luau seats people there). The pad sits
 -- against the wall, so the rest of the balcony is free to walk along without stepping on it.
-local LEVEL_GLOW = { BombHotel = Color3.fromRGB(255, 150, 60), SharkSurvival = Color3.fromRGB(90, 180, 255) }
-local LEVEL_ICON = { BombHotel = "\u{1F4A3}", SharkSurvival = "\u{1F988}" } -- bomb, shark
+local LEVEL_GLOW = { BombHotel = Color3.fromRGB(255, 150, 60), SharkSurvival = Color3.fromRGB(90, 180, 255), KillerHotel = Color3.fromRGB(200, 40, 50) }
+local LEVEL_ICON = { BombHotel = "\u{1F4A3}", SharkSurvival = "\u{1F988}", KillerHotel = "\u{1F52A}" } -- bomb, shark, knife
 local ROOM_DEPTH = 22 -- how long the bus is, going back from the wall
 local ROOM_WIDTH = 13 -- along the wall (a 1-stud gap between neighbouring rooms)
 local SEAT_ROWS = 8 -- 8 rows of 4 bus seats = 32, a full room

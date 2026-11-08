@@ -98,7 +98,9 @@ local function buildStatus()
 		statusLabel.Text = ReplicatedStorage:GetAttribute("Status") or ""
 		local timeLeft = ReplicatedStorage:GetAttribute("TimeLeft") or 0
 		timerBadge.Visible = timeLeft > 0
-		timerLabel.Text = tostring(timeLeft)
+		-- Long rounds (Killer Hotel: 10 minutes) read as m:ss; short ones stay a plain number of seconds.
+		timerLabel.Text = if timeLeft >= 100 then string.format("%d:%02d", timeLeft // 60, timeLeft % 60) else tostring(timeLeft)
+		timerLabel.TextScaled = timeLeft >= 100
 		timerBadge.BackgroundColor3 = if timeLeft <= 10 then Colors.Warning else Colors.Felt
 	end
 	ReplicatedStorage:GetAttributeChangedSignal("Status"):Connect(update)
