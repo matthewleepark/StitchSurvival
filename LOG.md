@@ -3,6 +3,11 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 (admin: suweetiepie) — Matthew (with Claude)
+Same branch.
+- **Admin:** added `suweetiepie` to `Config.Admins` (now 3HBQ, ACKworld, suweetiepie). The server still checks the
+  list on every admin command.
+
 ## 2026-11-08 (killer throws bombs) — Matthew (with Claude)
 Same branch. **Touches Rosie's Killer Hotel files** (`Levels/KillerHotel.luau`, `client/Roles.luau`,
 `Config.KillerHotel`), so Rosie should review.
