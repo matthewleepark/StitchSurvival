@@ -29,6 +29,19 @@ local adminCommand = Instance.new("RemoteEvent")
 adminCommand.Name = "AdminCommand"
 adminCommand.Parent = folder
 
+-- Killer Hotel: the killer asks to drop a bomb. The server checks everything (role, stock, cooldown).
+local dropBomb = Instance.new("RemoteEvent")
+dropBomb.Name = "DropBomb"
+dropBomb.Parent = folder
+
+-- Killer Hotel parkour: intents only. The server decides speeds, stamina and whether a clamber is allowed.
+local sprint = Instance.new("RemoteEvent")
+sprint.Name = "Sprint"
+sprint.Parent = folder
+local clamber = Instance.new("RemoteEvent")
+clamber.Name = "Clamber"
+clamber.Parent = folder
+
 folder.Parent = ReplicatedStorage
 
 local Remotes = {
@@ -36,6 +49,9 @@ local Remotes = {
 	EquipGear = equipGear,
 	RedeemCode = redeemCode,
 	AdminCommand = adminCommand,
+	DropBomb = dropBomb,
+	Sprint = sprint,
+	Clamber = clamber,
 }
 
 function Remotes.fireAll(kind: string, data: any?)

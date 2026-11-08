@@ -268,7 +268,7 @@ local function updateOxygen(stage, dt: number)
 			local maxOxygen = Config.DefaultOxygen + (Util.passive(player, "air") or 0)
 			local oxygen = player:GetAttribute("Oxygen") or maxOxygen
 
-			if head.Position.Y < stage.waterTop - 0.3 then
+			if head.Position.Y < stage.waterTop - Config.DrownDepth then
 				oxygen = math.max(0, oxygen - dt)
 				if oxygen <= 0 then
 					Util.damage(humanoid, DROWN_DAMAGE_PER_SECOND * dt)

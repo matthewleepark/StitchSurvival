@@ -21,6 +21,7 @@ local Pod = require(script.Levels.HotelLobby) -- the hub; swap back to script.Le
 local levelModules = {
 	BombHotel = require(script.Levels.BombHotel),
 	SharkSurvival = require(script.Levels.SharkSurvival),
+	KillerHotel = require(script.Levels.KillerHotel),
 }
 
 Players.RespawnTime = 3
@@ -137,6 +138,11 @@ local function playRound(room: Rooms.Room)
 		return
 	end
 	local level = levelModules[def.name]
+	-- A level may set its own round length (def.roundTime) and may define these optional hooks:
+	--   level.begin(stage, participants)    after everyone is sent in, before the countdown (hand out roles)
+	--   level.isOver(stage, alive)          true to end the round early (a team has won)
+	--   level.finish(stage, alive)          { winners = { [Player]: true }, text = string } when the round ends
+	local roundTime = def.roundTime or Config.RoundTime
 	-- An admin "Start now" pulls in everyone; a normal round takes the room's queue.
 	local queued = if (room :: any).adminStart then Players:GetPlayers() else Rooms.take(room) -- the room reopens for the next game while this one plays
 
@@ -176,6 +182,10 @@ local function playRound(room: Rooms.Room)
 		alive[player] = nil
 	end))
 
+	if level.begin then
+		level.begin(stage, participants)
+	end
+
 	-- Countdown with everyone frozen in place.
 	setPhase("Countdown")
 	setFrozen(participants, true)
@@ -197,14 +207,14 @@ local function playRound(room: Rooms.Room)
 			return active
 		end,
 		progress = function()
-			return math.clamp((os.clock() - startTime) / Config.RoundTime, 0, 1)
+			return math.clamp((os.clock() - startTime) / roundTime, 0, 1)
 		end,
 	}
 	task.spawn(level.run, stage, ctx)
 
 	local nextTick = startTime + 1
 	while active do
-		local timeLeft = Config.RoundTime - (os.clock() - startTime)
+		local timeLeft = roundTime - (os.clock() - startTime)
 		setStatus(def.title, math.max(0, math.ceil(timeLeft)))
 
 		if os.clock() >= nextTick then
@@ -226,7 +236,7 @@ local function playRound(room: Rooms.Room)
 			end
 		end
 
-		if timeLeft <= 0 or next(alive) == nil or RoundControl.endRound then
+		if timeLeft <= 0 or next(alive) == nil or RoundControl.endRound or (level.isOver and level.isOver(stage, alive)) then
 			RoundControl.endRound = false
 			active = false
 		end
@@ -244,13 +254,14 @@ local function playRound(room: Rooms.Room)
 	end
 	setPhase("Results")
 	freezeWorld(level, stage, survivors)
+	local outcome = if level.finish then level.finish(stage, alive) else nil
 
 	-- Results: survivors get a bonus, everyone turns points into Stickers.
 	local entries = {}
 	local anySurvived = false
 	for _, player in participants do
 		if player.Parent then
-			local survived = alive[player] == true
+			local survived = if outcome then outcome.winners[player] == true else alive[player] == true
 			if survived then
 				anySurvived = true
 				Score.add(player, Config.SurviveBonus)
@@ -281,7 +292,7 @@ local function playRound(room: Rooms.Room)
 		return a.score > b.score
 	end)
 
-	setStatus(if anySurvived then "Level complete!" else "Everyone got popped!")
+	setStatus(if outcome then outcome.text elseif anySurvived then "Level complete!" else "Everyone got popped!")
 	Remotes.fireAll("Results", { title = def.title, entries = entries })
 	task.wait(Config.ResultsTime)
 

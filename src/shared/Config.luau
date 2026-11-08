@@ -41,6 +41,12 @@ Config.Chaos = {
 -- Shark Survival: the shark switches from patrolling to hunting when a player is this close.
 Config.SharkHuntRadius = 45
 
+-- The jumpscare on your own screen when a shark eats you (client/Jumpscare.luau). The sound is
+-- Config.Sounds.JumpscareSting.
+Config.Jumpscare = {
+	seconds = 1.6, -- how long it plays (you are already dead underneath it; respawn takes 3 s)
+}
+
 -- Scoring: each score bubble is worth 10 points. Raise MaxMultiplier (e.g. to 8) to turn on
 -- LBP-style combos, where grabbing bubbles quickly multiplies their value.
 
@@ -110,21 +116,111 @@ Config.Levels = {
 		height = 48,
 		waterDepth = 20,
 	},
+	-- Killer Hotel: one killer hunts everyone else with bombs (see Config.KillerHotel below).
+	-- weight 0: a "Random" admin start never picks it; it is played from its own guest-room doors.
+	{
+		name = "KillerHotel",
+		title = "Killer Hotel",
+		weight = 0,
+		minPlayers = 2, -- a killer needs someone to hunt (Config.KillerHotel.soloTest overrides it)
+		roundTime = 600, -- 10 minutes
+		origin = Vector3.new(0, 20, 1500),
+		width = 224, -- = Config.KillerHotel.map.cells * map.cell
+		depth = 224,
+		floors = 3,
+		floorHeight = 28, -- studs from one floor to the next (the old hotel was 16); walls are 2 less than this
+		height = 3 * 28 + 20,
+	},
+}
+
+-- Killer Hotel: one KILLER hunts the INNOCENTS with bombs. The killer wins by getting everyone before
+-- the timer (Config.Levels roundTime) runs out; the innocents win if any of them is still alive.
+-- Innocents never see a bomb's timer; they only hear its tick (Config.Sounds.BombTick range) up close.
+Config.KillerHotel = {
+	killerPityWeight = 0.5, -- each round you were not the killer adds this much to your odds next time (1 = base)
+	soloTest = false, -- true: a lone player becomes the killer (for testing only; normal rounds need minPlayers)
+	fuse = 8, -- seconds from a dropped bomb to the blast
+	startBombs = 3, -- bombs the killer starts with
+	carryLimit = 3, -- the most bombs the killer can hold
+	restockSeconds = 25, -- a new bomb every this many seconds, up to carryLimit
+	dropCooldown = 2, -- seconds between drops
+	dropAhead = 4, -- studs in front of the killer that the bomb lands
+	dropKey = Enum.KeyCode.Q, -- (gamepad: X; touch gets an on-screen button)
+	killerImmuneToOwnBombs = true, -- the killer takes no damage from blasts, fire or falling blocks (an invisible ForceField), so their own bombs can't end the round
+	killerRescue = true, -- the killer's own blasts can drop the floor away; falling out puts them back on the top floor instead of ending the round
+	roleBannerSeconds = 5, -- how long the "you are the killer / an innocent" banner stays up
+	-- The maze (Levels/KillerMaze.luau, layout in Levels/MazeLayout.luau). Each floor is cells x cells.
+	-- Change cells or cell and also set the level's width and depth in Config.Levels to cells * cell.
+	map = {
+		cells = 14, -- 14 x 14 cells a floor
+		cell = 16, -- studs per cell: 14 of corridor between 2-stud walls
+		rampsPerFloor = 2, -- ramps from each floor up to the next
+		loopChance = 0.12, -- of the walls left after the maze is carved, how many are opened to make loops and shortcuts
+		lampSpacing = 2, -- a ceiling lamp in every this-many-th cell, each way
+		seed = nil, -- set a number to get the same maze every round (nil = a new one each round)
+	},
+	-- Rooms: cells with a door (dead ends mostly), furnished, some with a wardrobe to hide in.
+	rooms = {
+		perFloor = 10,
+		passThroughChance = 0.4, -- chance a room gets a second door onto another corridor (a way out, and a loop)
+		wardrobeChance = 0.6, -- chance a room has a wardrobe to hide in
+	},
+	-- Doors swing OUT of the room with a kick. Hold the open key to kick one open or shut; from inside,
+	-- the lock key locks it. The killer breaks a locked door by holding the open key for breakSeconds
+	-- (a loud pounding the whole time) or blows it up with a bomb. (E is taken: it grabs things.)
+	doors = {
+		width = 6, -- studs of doorway
+		height = 11,
+		openAngle = 100, -- degrees it swings out (it overshoots a little and bounces back)
+		openHold = 0.15, -- seconds to hold the open key
+		breakSeconds = 6, -- how long the killer must hold to break a locked door
+		poundEvery = 0.8, -- seconds between pounds while the killer breaks a door
+		closeClearance = 2.5, -- a door will not shut while someone stands in its doorway (this close to the wall line)
+		openKey = Enum.KeyCode.F, -- (gamepad: Y)
+		lockKey = Enum.KeyCode.G, -- (gamepad: left bumper)
+	},
+	-- Parkour: hold the run key to run (it uses stamina), and press jump next to something climbable to
+	-- clamber up onto it. Climbable things are tagged "Climbable": crates, shelves in rooms, and tall
+	-- barricades across some corridors (taller than a jump, so they take a clamber). The server decides all of
+	-- it: speeds, stamina, and whether a clamber is allowed. The killer walks and runs a bit faster, but is
+	-- slower to clamber, so a good runner can lose them at a barricade. Walk speed is Config.Doll.WalkSpeed
+	-- (plus passives).
+	parkour = {
+		runKey = Enum.KeyCode.LeftShift, -- (gamepad: left stick click; touch gets a RUN button)
+		runMultiplier = 1.4, -- running speed, times walking speed
+		killerWalkMultiplier = 1.1, -- the killer's walk and run, times everyone else's
+		runSeconds = 4.5, -- of running from a full stamina bar
+		regenSeconds = 6, -- to fill an empty bar again
+		regenDelay = 1, -- seconds after running or clambering before it starts to refill
+		exhaustedUntil = 0.3, -- empty means exhausted: no running until the bar is back to this much
+		minLedge = 2.5, -- studs above your feet: lower than this you just step up
+		reach = 10, -- studs above your feet: the highest top you can clamber onto (a jump is about 7)
+		maxDistance = 4.5, -- how close to the edge you must be, in studs
+		clamberCost = 0.12, -- of the stamina bar
+		clamberCooldown = 0.5,
+		clamberSeconds = 0.3, -- plus this much per stud of height
+		clamberSecondsPerStud = 0.05,
+		killerClamberMultiplier = 1.7, -- the killer takes this many times longer to clamber
+		barricadesPerFloor = 8, -- tall barricades across straight corridors
+		barricadeHeight = 8.5,
+		shelfChance = 0.5, -- chance a room's crate is a tall shelf instead
+		shelfHeight = 8.5,
+	},
 }
 
 -- Game rooms: the numbered guest-room doors on the hotel balconies. Walk up and hold E to join a
 -- room's queue (again to leave). Rounds run one at a time, so rooms take turns: the room that has
 -- been waiting longest (with at least MinPlayers) plays its level next.
--- Also set Max Players to 32 in Studio: Home > Game Settings > Basic Info.
+-- Max Players in Studio (Home > Game Settings > Basic Info) should match `capacity` below.
 Config.Rooms = {
-	capacity = 32,
+	capacity = 16, -- also set Max Players to 16 in Studio: Home > Game Settings > Basic Info
 	-- room number -> level name from Config.Levels. Odd numbers are the left balcony, even the right.
 	levels = {
 		[201] = "BombHotel",
 		[203] = "BombHotel",
 		[205] = "BombHotel",
-		[207] = "BombHotel",
-		[209] = "BombHotel",
+		[207] = "KillerHotel",
+		[209] = "KillerHotel",
 		[202] = "SharkSurvival",
 		[204] = "SharkSurvival",
 		[206] = "SharkSurvival",
@@ -271,6 +367,10 @@ Config.LowHealth = 0.4
 -- (The code still calls these "gear" internally: Config.Gear, the "Gear" attribute.)
 
 Config.DefaultOxygen = 10 -- seconds of air everyone has; the air passive adds to this
+-- Air only runs out, and you only drown, while your head is fully under: its centre this many studs
+-- below the surface (a head is about 2 studs tall, so 1 is "the top of the head is under"). Floating,
+-- treading water or bobbing never counts.
+Config.DrownDepth = 1
 Config.Gear = {
 	{ name = "Lucky Thread", rarity = "Common", weight = 34, icon = "\u{1F9F5}", passives = { scoreBonus = 0.15 } },
 	{ name = "Quick Laces", rarity = "Common", weight = 26, icon = "\u{1F45F}", passives = { speed = 2 } },
@@ -374,6 +474,19 @@ end
 
 local BUILTIN = "rbxasset://sounds/"
 
+-- Background music (menu, lobby and level tracks). Off for now; set enabled = true to bring it back.
+Config.Music = {
+	enabled = false,
+}
+
+-- Jump and landing sounds. Both are off: the jump boing and the pouf on every landing were
+-- annoying (the jump sound sat on a reverb that made it worse). Footsteps, oofs and the pop sound
+-- are separate and stay on.
+Config.CharacterAudio = {
+	jumping = false,
+	softLandings = false,
+}
+
 Config.Sounds = {
 	-- Music + background ------------------------------------------------------
 	MenuMusic = { id = "", volume = 0.4, looped = true }, -- bouncy, slightly out-of-tune acoustic guitar + playful marimba
@@ -414,6 +527,12 @@ Config.Sounds = {
 	VelcroRip = { id = "", volume = 0.8, range = 150 }, -- riiiiip of industrial Velcro as walls tear loose
 	BlockBreak = { id = "", volume = 0.6, range = 100 }, -- dry wood snapping + phonebook ripping
 	DebrisThud = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.8, speed = 0.5, range = 100 }, -- heavy hollow thud-clatter
+	DoorKick = { id = "rbxassetid://111763202035471", volume = 1, speed = 0.8, range = 90 }, -- a door kicked open: a hard BANG
+	DoorClose = { id = "rbxassetid://111763202035471", volume = 0.55, range = 60 }, -- a door shut
+	DoorLock = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.5, speed = 3, range = 40 }, -- deadbolt click
+	DoorPound = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 1, speed = 0.45, range = 110 }, -- the killer pounding on a locked door
+	WardrobeCreak = { id = "rbxassetid://125209584906878", volume = 0.5, range = 30 }, -- a wardrobe door creaking
+	Clamber = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.45, speed = 1.5, range = 50 }, -- scrabbling up onto a ledge
 	DebrisWhistle = { id = "", volume = 0.5, range = 80 }, -- descending fshhhhh as a block falls through the air
 	Rumble = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.7, speed = 0.3, range = 60 }, -- low grrrr-whump through the floor
 	Gasp = { id = "", fallback = BUILTIN .. "ouch.ogg", volume = 0.5, speed = 1.3, range = 50 }, -- quick airless fabric gasp "uh!" while burning
@@ -434,6 +553,9 @@ Config.Sounds = {
 	RaftSqueak = { id = "", volume = 0.5, range = 50 }, -- damp squeak-crunch of foam when you land on a raft
 	PlatformSlosh = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.4, speed = 0.7, range = 60 }, -- wet slosh-muffle as a raft edge dips under
 	Splash = { id = "", fallback = BUILTIN .. "impact_water.mp3", volume = 0.7, range = 120 },
+
+	-- Played on the victim's own screen when a shark eats them (client/Jumpscare.luau).
+	JumpscareSting = { id = "rbxassetid://1841353939", volume = 1 }, -- "Rising Fear Hit 3" (APM Music, free), 4 s: peaks at 0.1 s and fades
 
 	-- Players ----------------------------------------------------------------------------------
 	Jump = { id = "", fallback = BUILTIN .. "action_jump.mp3", volume = 0.5, speed = 1.5, range = 60 }, -- tight boing / plucked guitar string

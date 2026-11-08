@@ -259,7 +259,9 @@ function FlyingShark.attack(stage, ctx)
 			if humanoid and playerRoot and not bitten[player] and (playerRoot.Position - mouth).Magnitude < BITE_RANGE * S then
 				bitten[player] = true
 				Util.playSound("Chomp", pieces[1].part)
-				Util.kill(humanoid)
+				if Util.kill(humanoid) then
+					Remotes.fire(player, "Jumpscare", {}) -- the victim's screen only
+				end
 			end
 		end
 	end)

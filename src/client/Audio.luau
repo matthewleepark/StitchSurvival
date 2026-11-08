@@ -13,6 +13,7 @@ local SoundService = game:GetService("SoundService")
 local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local SoundBank = require(ReplicatedStorage.Shared.SoundBank)
 local Stages = require(script.Parent.Stages)
 
@@ -27,6 +28,7 @@ local factors: { [string]: { [string]: number } } = {}
 local ROOM_REVERB = {
 	Pod = Enum.ReverbType.Hangar, -- huge enclosed toybox: faint hollow echo, walls far away
 	BombHotel = Enum.ReverbType.Auditorium, -- hollow, cavernous indoor space
+	KillerHotel = Enum.ReverbType.Auditorium,
 	SharkSurvival = Enum.ReverbType.Plain,
 }
 
@@ -127,6 +129,9 @@ local currentMusicName: string? = nil
 local currentMusic: Sound? = nil
 
 function Audio.setMusic(name: string?)
+	if not Config.Music.enabled then
+		name = nil -- music is switched off in Config.Music
+	end
 	if name == currentMusicName then
 		return
 	end

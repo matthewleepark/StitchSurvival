@@ -118,13 +118,17 @@ local function track(character: Model)
 
 	humanoid.StateChanged:Connect(function(_, new)
 		if new == Enum.HumanoidStateType.Jumping then
-			Audio.play("Jump", root)
+			if Config.CharacterAudio.jumping then
+				Audio.play("Jump", root)
+			end
 			entry.lowestFall = 0
 		elseif new == Enum.HumanoidStateType.Freefall then
 			entry.lowestFall = 0
 		elseif new == Enum.HumanoidStateType.Landed then
 			-- Just a soft landing sound; no heavy slam, screen shake or stagger.
-			Audio.play("LandSoft", root)
+			if Config.CharacterAudio.softLandings then
+				Audio.play("LandSoft", root)
+			end
 			entry.lowestFall = 0
 		end
 	end)

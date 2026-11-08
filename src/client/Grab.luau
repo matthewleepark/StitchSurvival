@@ -118,6 +118,11 @@ local function grab()
 	end)
 end
 
+-- Are we hanging on to something right now? (Clambering waits until we let go.)
+function Grab.isHolding(): boolean
+	return weld ~= nil
+end
+
 function Grab.start()
 	ContextActionService:BindAction("Grab", function(_, state)
 		if state == Enum.UserInputState.Begin then

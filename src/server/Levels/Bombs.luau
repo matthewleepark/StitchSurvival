@@ -182,7 +182,8 @@ function Bombs.ignite(stage, center: Vector3)
 	end
 end
 
-function Bombs.explode(stage, position: Vector3)
+-- `spare`: a player this blast does not hurt (the killer, in Killer Hotel).
+function Bombs.explode(stage, position: Vector3, spare: Player?)
 	local blastRadius = Config.PlantedBombBlastRadius
 	Remotes.fireAll("Boom", { position = position, radius = DAMAGE_RADIUS })
 	Util.soundAt("Bang", position)
@@ -216,7 +217,7 @@ function Bombs.explode(stage, position: Vector3)
 	for _, player in Players:GetPlayers() do
 		local humanoid = Util.aliveHumanoid(player)
 		local root = Util.rootPart(player)
-		if humanoid and root then
+		if humanoid and root and player ~= spare then
 			local offset = root.Position - position
 			local distance = offset.Magnitude
 			if distance < DAMAGE_RADIUS then
@@ -232,7 +233,8 @@ function Bombs.explode(stage, position: Vector3)
 	task.spawn(Bombs.ignite, stage, position)
 end
 
-local function buildBomb(stage, position: Vector3)
+-- `hidden`: no countdown number floating over it and no Hazard tag, so nobody sees the timer (Killer Hotel).
+local function buildBomb(stage, position: Vector3, hidden: boolean?)
 	-- Black papier-mache ball.
 	local bomb = Craft.ball(stage.model, position, 4, Colors.Bomb, M.Cardboard)
 	bomb.Name = "Bomb"
@@ -260,6 +262,12 @@ local function buildBomb(stage, position: Vector3)
 	glow.Brightness = 1.5
 	glow.Parent = fuse
 
+	bomb:SetNetworkOwner(nil) -- server-controlled so everyone sees the same blast
+	Craft.tag(bomb, "Occluded") -- its sounds get muffled when a floor or wall is in the way
+	if hidden then
+		return bomb, nil
+	end
+
 	-- Countdown number floating above it.
 	local billboard = Instance.new("BillboardGui")
 	billboard.Size = UDim2.fromOffset(80, 50)
@@ -276,16 +284,29 @@ local function buildBomb(stage, position: Vector3)
 	number.TextStrokeColor3 = Colors.Felt
 	number.Parent = billboard
 
-	bomb:SetNetworkOwner(nil) -- server-controlled so everyone sees the same blast
-	Craft.tag(bomb, "Occluded") -- its sounds get muffled when a floor or wall is in the way
 	Craft.tag(bomb, "Hazard") -- the Spooky Sense passive shows it through walls
 	return bomb, number
 end
 
+export type PlantOptions = {
+	fuse: number?, -- seconds; default Config.PlantedBombFuse
+	hidden: boolean?, -- no timer number, no blinking, no bell: the bomb only ticks (Killer Hotel)
+	owner: Player?, -- who dropped it; the blast spares them if spare is set
+	spareOwner: boolean?,
+	onBomb: ((bomb: BasePart, fuse: number) -> ())?, -- called once the bomb exists
+}
+
 -- Drop a bomb at a spot inside the hotel. Runs until it explodes (or the round ends).
-function Bombs.plant(stage, position: Vector3)
-	local bomb, number = buildBomb(stage, position)
-	Util.playSound("BombBell", bomb)
+function Bombs.plant(stage, position: Vector3, options: PlantOptions?)
+	local hidden = options ~= nil and options.hidden == true
+	local bomb, number = buildBomb(stage, position, hidden)
+	local fuse = if options and options.fuse then options.fuse else Config.PlantedBombFuse
+	if options and options.onBomb then
+		options.onBomb(bomb, fuse)
+	end
+	if not hidden then
+		Util.playSound("BombBell", bomb)
+	end
 	Util.loopSound("FuseHiss", bomb)
 
 	local landed = false
@@ -296,17 +317,20 @@ function Bombs.plant(stage, position: Vector3)
 		end
 	end)
 
-	local fuse = Config.PlantedBombFuse
 	local elapsed = 0
 	while elapsed < fuse and bomb.Parent and not stage.frozen do
 		local timeLeft = fuse - elapsed
-		number.Text = tostring(math.ceil(timeLeft))
+		if number then
+			number.Text = tostring(math.ceil(timeLeft))
+		end
 		-- 120 ticks a minute, doubling for the last 5 seconds.
 		local interval = if timeLeft <= 5 then 0.25 else 0.5
-		bomb.Color = Colors.Felt
+		if not hidden then
+			bomb.Color = Colors.Felt -- the blink shows the rhythm; hidden bombs only tick
+		end
 		Util.playSound("BombTick", bomb)
 		task.wait(interval * 0.4)
-		if bomb.Parent then
+		if bomb.Parent and not hidden then
 			bomb.Color = Colors.Bomb
 		end
 		task.wait(interval * 0.6)
@@ -318,7 +342,8 @@ function Bombs.plant(stage, position: Vector3)
 
 	local at = bomb.Position
 	bomb:Destroy()
-	Bombs.explode(stage, at)
+	local spare = if options and options.spareOwner then options.owner else nil
+	Bombs.explode(stage, at, spare)
 end
 
 return Bombs

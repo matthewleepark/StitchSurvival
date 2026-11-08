@@ -13,6 +13,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Audio = require(script.Parent.Audio)
 local CameraShake = require(script.Parent.CameraShake)
+local Jumpscare = require(script.Parent.Jumpscare)
 
 local Colors = Config.Colors
 local player = Players.LocalPlayer
@@ -317,6 +318,11 @@ local function animate(dt: number)
 		bulb.Material = if on then Enum.Material.Neon else Enum.Material.SmoothPlastic
 		bulb.Color = if on then Colors.Gold else Color3.fromRGB(150, 120, 60)
 	end
+end
+
+-- A shark ate you (sent to you only): the jumpscare.
+function handlers.Jumpscare(data)
+	Jumpscare.play(data and data.seconds)
 end
 
 function Effects.handle(kind: string, data)
