@@ -66,6 +66,16 @@ function KillerMaze.build(def)
 	local killerCell = (N // 2) + (N // 2) * N
 	MazeLayout.placeRooms(layout, rng, Config.KillerHotel.rooms.perFloor, Config.KillerHotel.rooms.passThroughChance, { [0] = { [killerCell] = true } })
 
+	local parkour = Config.KillerHotel.parkour
+	local barricades = MazeLayout.placeBarricades(layout, rng, parkour.barricadesPerFloor, { [0] = { [killerCell] = true } })
+	local barricadeCells = {}
+	for f = 0, floors - 1 do
+		barricadeCells[f] = {}
+	end
+	for _, barricade in barricades do
+		barricadeCells[barricade.floor][barricade.cell] = true
+	end
+
 	-- The stage table is filled in at the end; doors and wardrobes keep hold of it for the whole round.
 	local stage = { frozen = false }
 	KillerRooms.setup(stage)
@@ -216,8 +226,20 @@ function KillerMaze.build(def)
 			local d = sides[nextSide]
 			local direction = Vector3.new(d[1], 0, d[2])
 			local lateral = Vector3.new(d[2], 0, d[1]) * (if rng:NextNumber() < 0.5 then 4.5 else -4.5)
-			KillerRooms.buildCrate(breakables, middle + direction * (inner - 2.2) + lateral)
+			if rng:NextNumber() < parkour.shelfChance then
+				KillerRooms.buildShelf(breakables, middle + direction * (inner - 1.6) + lateral, d[1] ~= 0, parkour.shelfHeight)
+			else
+				KillerRooms.buildCrate(breakables, middle + direction * (inner - 2.2) + lateral)
+			end
 		end
+	end
+
+	-- Tall barricades across some straight corridors: too high to jump, so you have to clamber over (or find
+	-- another way round).
+	for _, barricade in barricades do
+		local c = barricade.cell
+		local position = at(cellX(c % N), barricade.floor * H, cellX(c // N))
+		KillerRooms.buildBarricade(breakables, position, barricade.axis == "x", cell - WALL, parkour.barricadeHeight)
 	end
 
 	-- Ramps.
@@ -290,7 +312,7 @@ function KillerMaze.build(def)
 	local candidates = {}
 	for f = 0, floors - 1 do
 		for c = 0, N * N - 1 do
-			if not layout.floorData[f].void[c] then
+			if not layout.floorData[f].void[c] and not barricadeCells[f][c] then
 				local fromKiller = math.max(math.abs(c % N - killerCell % N), math.abs(c // N - killerCell // N))
 				if f ~= 0 or fromKiller >= 5 then
 					table.insert(candidates, { floor = f, cell = c })
@@ -323,7 +345,7 @@ function KillerMaze.build(def)
 		table.insert(spawns, CFrame.new(cellPosition(spot.floor, spot.cell)))
 	end
 
-	print(`[KillerHotel] maze seed {seed}: {#layout.rooms} rooms, {#stage.doors} doors, {#breakables:GetChildren()} breakable parts, {#model:GetDescendants()} instances`)
+	print(`[KillerHotel] maze seed {seed}: {#layout.rooms} rooms, {#barricades} barricades, {#stage.doors} doors, {#breakables:GetChildren()} breakable parts, {#model:GetDescendants()} instances`)
 
 	stage.model = model
 	stage.breakables = breakables

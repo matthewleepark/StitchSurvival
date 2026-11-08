@@ -179,6 +179,33 @@ Config.KillerHotel = {
 		openKey = Enum.KeyCode.F, -- (gamepad: Y)
 		lockKey = Enum.KeyCode.G, -- (gamepad: left bumper)
 	},
+	-- Parkour: hold the run key to run (it uses stamina), and press jump next to something climbable to
+	-- clamber up onto it. Climbable things are tagged "Climbable": crates, shelves in rooms, and tall
+	-- barricades across some corridors (taller than a jump, so they take a clamber). The server decides all of
+	-- it: speeds, stamina, and whether a clamber is allowed. The killer walks and runs a bit faster, but is
+	-- slower to clamber, so a good runner can lose them at a barricade. Walk speed is Config.Doll.WalkSpeed
+	-- (plus passives).
+	parkour = {
+		runKey = Enum.KeyCode.LeftShift, -- (gamepad: left stick click; touch gets a RUN button)
+		runMultiplier = 1.4, -- running speed, times walking speed
+		killerWalkMultiplier = 1.1, -- the killer's walk and run, times everyone else's
+		runSeconds = 4.5, -- of running from a full stamina bar
+		regenSeconds = 6, -- to fill an empty bar again
+		regenDelay = 1, -- seconds after running or clambering before it starts to refill
+		exhaustedUntil = 0.3, -- empty means exhausted: no running until the bar is back to this much
+		minLedge = 2.5, -- studs above your feet: lower than this you just step up
+		reach = 10, -- studs above your feet: the highest top you can clamber onto (a jump is about 7)
+		maxDistance = 4.5, -- how close to the edge you must be, in studs
+		clamberCost = 0.12, -- of the stamina bar
+		clamberCooldown = 0.5,
+		clamberSeconds = 0.3, -- plus this much per stud of height
+		clamberSecondsPerStud = 0.05,
+		killerClamberMultiplier = 1.7, -- the killer takes this many times longer to clamber
+		barricadesPerFloor = 8, -- tall barricades across straight corridors
+		barricadeHeight = 8.5,
+		shelfChance = 0.5, -- chance a room's crate is a tall shelf instead
+		shelfHeight = 8.5,
+	},
 }
 
 -- Game rooms: the numbered guest-room doors on the hotel balconies. Walk up and hold E to join a
@@ -505,6 +532,7 @@ Config.Sounds = {
 	DoorLock = { id = "", fallback = BUILTIN .. "volume_slider.ogg", volume = 0.5, speed = 3, range = 40 }, -- deadbolt click
 	DoorPound = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 1, speed = 0.45, range = 110 }, -- the killer pounding on a locked door
 	WardrobeCreak = { id = "rbxassetid://125209584906878", volume = 0.5, range = 30 }, -- a wardrobe door creaking
+	Clamber = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.45, speed = 1.5, range = 50 }, -- scrabbling up onto a ledge
 	DebrisWhistle = { id = "", volume = 0.5, range = 80 }, -- descending fshhhhh as a block falls through the air
 	Rumble = { id = "", fallback = BUILTIN .. "action_jump_land.mp3", volume = 0.7, speed = 0.3, range = 60 }, -- low grrrr-whump through the floor
 	Gasp = { id = "", fallback = BUILTIN .. "ouch.ogg", volume = 0.5, speed = 1.3, range = 50 }, -- quick airless fabric gasp "uh!" while burning

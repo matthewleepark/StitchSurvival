@@ -24,6 +24,7 @@ local Util = require(script.Parent.Parent.Util)
 local Bombs = require(script.Parent.Bombs)
 local KillerMaze = require(script.Parent.KillerMaze)
 local KillerRooms = require(script.Parent.KillerRooms)
+local Parkour = require(script.Parent.Parent.Parkour)
 
 local KillerHotel = {}
 
@@ -226,6 +227,8 @@ function KillerHotel.freeze(stage)
 		end
 	end
 end
+
+Parkour.start() -- running and clambering (Parkour.luau); it only acts during a Killer Hotel round
 
 -- The killer's bomb button (the client binds Q / gamepad X / a touch button and sends this).
 Remotes.DropBomb.OnServerEvent:Connect(function(player: Player)

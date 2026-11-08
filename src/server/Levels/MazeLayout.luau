@@ -325,6 +325,90 @@ function MazeLayout.placeRooms(layout, rng: Random, perFloor: number, passThroug
 	return rooms
 end
 
+-- Picks `perFloor` straight corridor cells on every floor for a barricade across the corridor. Not in rooms,
+-- next to a door, in a ramp corridor or on a ramp's ends, in a reserved cell, or touching another barricade.
+-- Returns a list of { floor, cell, axis } where axis is "x" or "z", the way the corridor runs.
+function MazeLayout.placeBarricades(layout, rng: Random, perFloor: number, reserved)
+	local N = layout.N
+	local placed = {}
+	local roomCells = {}
+	for _, room in layout.rooms or {} do
+		roomCells[room.floor] = roomCells[room.floor] or {}
+		roomCells[room.floor][room.cell] = true
+	end
+	for f = 0, layout.floors - 1 do
+		local data = layout.floorData[f]
+		local blocked = {}
+		for c in data.void do
+			blocked[c] = true
+		end
+		for c in data.chain do
+			blocked[c] = true
+		end
+		for _, ramp in layout.ramps do
+			if ramp.floor == f then
+				blocked[ramp.cells[0]] = true
+			elseif ramp.floor == f - 1 then
+				blocked[ramp.cells[5]] = true
+			end
+		end
+		for c in (reserved and reserved[f]) or {} do
+			blocked[c] = true
+		end
+		for c in roomCells[f] or {} do
+			blocked[c] = true
+		end
+
+		local function isOpen(a: number, b: number): boolean
+			return data.open[edgeKey(a, b)] == true
+		end
+		local function neighbours(c: number)
+			local i, j = c % N, c // N
+			return { if i > 0 then c - 1 else -1, if i < N - 1 then c + 1 else -1, if j > 0 then c - N else -1, if j < N - 1 then c + N else -1 }
+		end
+		local function touchesDoor(c: number): boolean
+			for _, n in neighbours(c) do
+				if n >= 0 and data.door[edgeKey(c, n)] then
+					return true
+				end
+			end
+			return false
+		end
+
+		local candidates = {}
+		for c = 0, N * N - 1 do
+			if not blocked[c] and not touchesDoor(c) then
+				local i, j = c % N, c // N
+				local openX = i > 0 and i < N - 1 and isOpen(c, c - 1) and isOpen(c, c + 1) and not (j > 0 and isOpen(c, c - N)) and not (j < N - 1 and isOpen(c, c + N))
+				local openZ = j > 0 and j < N - 1 and isOpen(c, c - N) and isOpen(c, c + N) and not (i > 0 and isOpen(c, c - 1)) and not (i < N - 1 and isOpen(c, c + 1))
+				if openX or openZ then
+					table.insert(candidates, { cell = c, axis = if openX then "x" else "z" })
+				end
+			end
+		end
+		shuffle(candidates, rng)
+		local chosen, count = {}, 0
+		for _, candidate in candidates do
+			if count >= perFloor then
+				break
+			end
+			local near = false
+			for _, n in neighbours(candidate.cell) do
+				if n >= 0 and chosen[n] then
+					near = true
+				end
+			end
+			if not near then
+				chosen[candidate.cell] = true
+				count += 1
+				table.insert(placed, { floor = f, cell = candidate.cell, axis = candidate.axis })
+			end
+		end
+	end
+	layout.barricades = placed
+	return placed
+end
+
 -- Walks every doorway and ramp from the middle of the ground floor. Returns whether every cell on every
 -- floor was reached, how many were, and how many there are.
 function MazeLayout.validate(layout): (boolean, number, number)

@@ -419,6 +419,33 @@ function KillerRooms.buildCrate(parent: Instance, position: Vector3)
 	local crate = Craft.block(parent, CFrame.new(position + Vector3.new(0, 2, 0)), Vector3.new(4, 4, 4), Colors.Burlap, M.Wood)
 	crate.Name = "Crate"
 	breakable(crate)
+	CollectionService:AddTag(crate, "Climbable") -- see Parkour.luau
+end
+
+-- A tall shelf against a wall, too high to jump onto (it takes a clamber). `wallAlongZ` says which way the wall runs.
+function KillerRooms.buildShelf(parent: Instance, position: Vector3, wallAlongZ: boolean, height: number)
+	local size = if wallAlongZ then Vector3.new(3, height, 6) else Vector3.new(6, height, 3)
+	local shelf = Craft.block(parent, CFrame.new(position + Vector3.new(0, height / 2, 0)), size, Colors.WoodDark, M.Wood)
+	shelf.Name = "Shelf"
+	breakable(shelf)
+	CollectionService:AddTag(shelf, "Climbable")
+	return shelf
+end
+
+-- A tall barricade of crates across a corridor, too high to jump (it takes a clamber to get over).
+-- `alongX` says which way the corridor runs; `width` is the corridor's clear width.
+function KillerRooms.buildBarricade(parent: Instance, position: Vector3, alongX: boolean, width: number, height: number)
+	local size = if alongX then Vector3.new(3, height, width) else Vector3.new(width, height, 3)
+	local barricade = Craft.block(parent, CFrame.new(position + Vector3.new(0, height / 2, 0)), size, Colors.Burlap, M.Wood)
+	barricade.Name = "Barricade"
+	breakable(barricade)
+	CollectionService:AddTag(barricade, "Climbable")
+	-- Darker boards across it, so it reads as a stack of crates.
+	for k = 1, 3 do
+		local board = Craft.block(parent, CFrame.new(position + Vector3.new(0, height * k / 4, 0)), size + (if alongX then Vector3.new(0.1, -size.Y + 0.4, -0.2) else Vector3.new(-0.2, -size.Y + 0.4, 0.1)), Colors.WoodDark, M.Wood, Craft.DECOR)
+		board.Name = "BarricadeBoard"
+	end
+	return barricade
 end
 
 -- Gives a stage what it needs to hold doors and wardrobes.
