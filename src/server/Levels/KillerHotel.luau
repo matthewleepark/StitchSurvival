@@ -4,8 +4,8 @@
 --     the killer makes you a little likelier next time, Config.KillerHotel.killerPityWeight).
 --     Each player is told only their OWN role (a private "Role" effect). Who the killer is lives only
 --     in `stage.killer` on the server; nothing about it is a replicated attribute.
---   * The killer drops bombs (the "DropBomb" request). The server checks the role, the stock, the
---     cooldown and the round phase. Bombs are hidden: no timer number, no blink, no bell. Only the
+--   * The killer throws bombs (the "DropBomb" request, aimed where they clicked). The server checks the
+--     role, the stock, the cooldown and the round phase. Bombs are hidden: no timer number, no blink, no bell. Only the
 --     killer gets a timer (a private "BombTimer" effect); everyone else can just hear the tick
 --     (Config.Sounds.BombTick range), muffled through walls.
 --   * The killer wins by getting every innocent before the round time (Config.Levels roundTime) runs
@@ -75,6 +75,63 @@ function KillerHotel.build(def)
 	return stage
 end
 
+-- While the killer has bombs, one sits on top of their head with its fuse fizzing, so everyone can see
+-- they're armed. It goes away when they run out, and comes back when a new one restocks.
+local function updateHeldBomb(stage)
+	local killer = stage.killer
+	local character = killer and killer.Character
+	local held = character and character:FindFirstChild("HeldBomb")
+	local wantIt = character ~= nil and stage.bombs > 0 and not stage.frozen and Util.aliveHumanoid(killer :: Player) ~= nil
+	if not wantIt then
+		if held then
+			held:Destroy()
+		end
+		return
+	end
+	local head = character:FindFirstChild("Head") :: BasePart?
+	if held or not head then
+		return
+	end
+
+	local bomb = Instance.new("Part")
+	bomb.Name = "HeldBomb"
+	bomb.Shape = Enum.PartType.Ball
+	bomb.Size = Vector3.one * 2.2
+	bomb.Color = Config.Colors.Bomb
+	bomb.Material = Enum.Material.SmoothPlastic
+	bomb.CanCollide = false
+	bomb.CanQuery = false
+	bomb.CanTouch = false
+	bomb.Massless = true
+	bomb.CFrame = head.CFrame * CFrame.new(0, head.Size.Y / 2 + 1.2, 0)
+	local fuse = Instance.new("Part")
+	fuse.Size = Vector3.new(0.2, 0.6, 0.2)
+	fuse.Color = Color3.fromRGB(190, 160, 110)
+	fuse.Material = Enum.Material.Fabric
+	fuse.CanCollide = false
+	fuse.CanQuery = false
+	fuse.CanTouch = false
+	fuse.Massless = true
+	fuse.CFrame = bomb.CFrame * CFrame.new(0, 1.3, 0)
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Color = ColorSequence.new(Config.Colors.Gold, Config.Colors.Warning)
+	sparks.LightEmission = 1
+	sparks.Size = NumberSequence.new(0.3, 0)
+	sparks.Lifetime = NumberRange.new(0.2, 0.4)
+	sparks.Speed = NumberRange.new(2, 5)
+	sparks.SpreadAngle = Vector2.new(180, 180)
+	sparks.Rate = 40
+	sparks.Parent = fuse
+	for _, part in { bomb, fuse } do
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = head
+		weld.Part1 = part
+		weld.Parent = part
+	end
+	fuse.Parent = bomb
+	bomb.Parent = character
+end
+
 -- Called by the round loop once everyone is in the level (before the countdown): hand out the roles.
 function KillerHotel.begin(stage, participants: { Player })
 	local minimum = if settings.soloTest then 1 else 2
@@ -111,6 +168,7 @@ function KillerHotel.begin(stage, participants: { Player })
 	end
 
 	Remotes.fire(killer, "Role", { role = "killer", seconds = settings.roleBannerSeconds, bombs = stage.bombs, max = settings.carryLimit })
+	updateHeldBomb(stage)
 	for player in stage.innocents do
 		Remotes.fire(player, "Role", { role = "innocent", seconds = settings.roleBannerSeconds })
 	end
@@ -148,6 +206,7 @@ function KillerHotel.run(stage, ctx)
 		elseif now >= stage.nextRestock then
 			stage.bombs += 1
 			stage.nextRestock = now + settings.restockSeconds
+			updateHeldBomb(stage)
 			if killer then
 				Remotes.fire(killer, "KillerBombs", { count = stage.bombs, max = settings.carryLimit })
 			end
@@ -204,6 +263,8 @@ function KillerHotel.finish(stage, alive: { [Player]: boolean })
 	end
 	Remotes.fireAll("Role", { role = "none" })
 	ReplicatedStorage:SetAttribute("InnocentsLeft", nil)
+	stage.bombs = 0
+	updateHeldBomb(stage) -- the killer stops holding a bomb
 	stage.releaseHidden() -- everyone climbs out of the wardrobes
 	local shield = killer and killer.Character and killer.Character:FindFirstChild("KillerShield")
 	if shield then
@@ -230,8 +291,10 @@ end
 
 Parkour.start() -- running and clambering (Parkour.luau); it only acts during a Killer Hotel round
 
--- The killer's bomb button (the client binds Q / gamepad X / a touch button and sends this).
-Remotes.DropBomb.OnServerEvent:Connect(function(player: Player)
+-- The killer throws a bomb. The client sends where they clicked or tapped (or, for the bomb key, where
+-- the camera points). The server checks the role, the stock, the cooldown and the round phase, then
+-- throws the bomb from above the killer's head toward that spot.
+Remotes.DropBomb.OnServerEvent:Connect(function(player: Player, target: any)
 	local stage = RoundControl.stage
 	if RoundControl.levelName ~= "KillerHotel" or not stage or stage.frozen or stage.killer ~= player then
 		return
@@ -241,7 +304,8 @@ Remotes.DropBomb.OnServerEvent:Connect(function(player: Player)
 	end
 	local humanoid = Util.aliveHumanoid(player)
 	local root = Util.rootPart(player)
-	if not humanoid or not root or not player.Character then
+	local head = player.Character and player.Character:FindFirstChild("Head") :: BasePart?
+	if not humanoid or not root or not head or not player.Character then
 		return
 	end
 	local now = os.clock()
@@ -250,24 +314,36 @@ Remotes.DropBomb.OnServerEvent:Connect(function(player: Player)
 	end
 	stage.bombs -= 1
 	stage.lastDrop = now
+	updateHeldBomb(stage)
 
-	-- Land the bomb a little in front of the killer, but not through a wall.
-	local flat = Util.flatten(root.CFrame.LookVector)
-	local direction = if flat.Magnitude > 0.1 then flat.Unit else Vector3.zAxis
+	-- Aim: at the clicked spot if we got one, otherwise straight ahead.
+	local overHead = head.Position + Vector3.new(0, 2.4, 0)
+	local direction
+	if typeof(target) == "Vector3" and (target - overHead).Magnitude > 1 then
+		direction = (target - overHead).Unit
+	else
+		local flat = Util.flatten(root.CFrame.LookVector)
+		direction = if flat.Magnitude > 0.1 then flat.Unit else Vector3.zAxis
+	end
+
+	-- Let go just in front of the head, unless a wall is right there.
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { player.Character }
-	local hit = workspace:Raycast(root.Position, direction * settings.dropAhead, params)
-	local ahead = if hit then math.max(0, hit.Distance - 2.5) else settings.dropAhead
-	local position = root.Position + direction * ahead + Vector3.new(0, 1, 0)
+	local start = overHead + direction * 2
+	if workspace:Raycast(head.Position, start - head.Position, params) then
+		start = head.Position
+	end
+	local velocity = direction * settings.throwSpeed + Vector3.new(0, settings.throwLift, 0)
 
 	Remotes.fire(player, "KillerBombs", { count = stage.bombs, max = settings.carryLimit })
-	task.spawn(Bombs.plant, stage, position, {
+	task.spawn(Bombs.plant, stage, start, {
 		fuse = settings.fuse,
 		hidden = true,
 		owner = player,
 		spareOwner = settings.killerImmuneToOwnBombs,
 		onBomb = function(bomb, fuse)
+			bomb.AssemblyLinearVelocity = velocity -- thrown with force
 			-- Only the killer sees the timer. A beat later, so the bomb has reached the killer's client first
 			-- (a remote that names an instance the client does not have yet delivers nil).
 			task.delay(0.15, function()

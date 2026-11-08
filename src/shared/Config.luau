@@ -140,13 +140,14 @@ Config.Levels = {
 Config.KillerHotel = {
 	killerPityWeight = 0.5, -- each round you were not the killer adds this much to your odds next time (1 = base)
 	soloTest = false, -- true: a lone player becomes the killer (for testing only; normal rounds need minPlayers)
-	fuse = 8, -- seconds from a dropped bomb to the blast
+	fuse = 4, -- seconds from a thrown bomb to the blast
 	startBombs = 3, -- bombs the killer starts with
 	carryLimit = 3, -- the most bombs the killer can hold
 	restockSeconds = 25, -- a new bomb every this many seconds, up to carryLimit
 	dropCooldown = 2, -- seconds between drops
-	dropAhead = 4, -- studs in front of the killer that the bomb lands
-	dropKey = Enum.KeyCode.Q, -- (gamepad: X; touch gets an on-screen button)
+	throwSpeed = 80, -- how hard the killer throws a bomb (studs per second)
+	throwLift = 12, -- a little extra upward push so throws arc instead of skidding along the floor
+	dropKey = Enum.KeyCode.Q, -- throws toward where the camera points (gamepad: X); clicking or tapping throws at that spot
 	killerImmuneToOwnBombs = true, -- the killer takes no damage from blasts, fire or falling blocks (an invisible ForceField), so their own bombs can't end the round
 	killerRescue = true, -- the killer's own blasts can drop the floor away; falling out puts them back on the top floor instead of ending the round
 	roleBannerSeconds = 5, -- how long the "you are the killer / an innocent" banner stays up

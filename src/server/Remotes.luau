@@ -29,7 +29,7 @@ local adminCommand = Instance.new("RemoteEvent")
 adminCommand.Name = "AdminCommand"
 adminCommand.Parent = folder
 
--- Killer Hotel: the killer asks to drop a bomb. The server checks everything (role, stock, cooldown).
+-- Killer Hotel: the killer asks to throw a bomb at a spot (a Vector3). The server checks everything (role, stock, cooldown).
 local dropBomb = Instance.new("RemoteEvent")
 dropBomb.Name = "DropBomb"
 dropBomb.Parent = folder

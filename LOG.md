@@ -3,6 +3,19 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 (killer throws bombs) — Matthew (with Claude)
+Same branch. **Touches Rosie's Killer Hotel files** (`Levels/KillerHotel.luau`, `client/Roles.luau`,
+`Config.KillerHotel`), so Rosie should review.
+- **Held bomb:** while the killer has bombs, a black bomb with a sparking fuse is welded on top of their head
+  (`updateHeldBomb`). It vanishes when they're out, comes back on restock, and is removed when the round ends.
+- **Throw anywhere:** click anywhere (PC) or tap anywhere (mobile, `TouchTapInWorld`) to throw a bomb at that spot.
+  Q / gamepad X / the BOMB button still work and throw at the mouse (or the middle of the screen). `DropBomb` now
+  carries a `Vector3` target; the server still checks role, stock, cooldown and phase, then launches the bomb from
+  above the head at `throwSpeed` 80 plus `throwLift` 12 upward. `dropAhead` is gone.
+- **Shorter fuse:** `Config.KillerHotel.fuse` 8 -> 4 seconds.
+- **Checked:** luau-lsp clean for the changed files (the 3 existing errors in MazeLayout/KillerMaze/Parkour
+  were already there before this change). **Not checked in Studio:** Studio isn't connected to the MCP server.
+
 ## 2026-11-08 (roof bombs) — Matthew (with Claude)
 Same branch.
 - **Bombs fall through the roof:** the Bomb Hotel roof is now breakable `RoofTile`s (8x8). Bombs spawn 25 studs above

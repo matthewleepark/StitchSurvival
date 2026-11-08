@@ -1,5 +1,6 @@
 -- Killer Hotel, your side of it: your own role (the server only ever tells you YOUR role), the
--- "innocents left" count, and, if you are the killer, the bomb button and a timer over each bomb you drop.
+-- "innocents left" count, and, if you are the killer, throwing bombs (click or tap anywhere, or the bomb
+-- key / BOMB button) and a timer over each bomb you throw.
 -- Innocents never get a bomb timer: the server only sends "BombTimer" to the killer.
 --
 -- Effects handled here: Role {role = "killer" | "innocent" | "none", seconds, bombs, max},
@@ -9,6 +10,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 
@@ -140,14 +142,39 @@ local function keyName(): string
 	return Config.KillerHotel.dropKey.Name
 end
 
+-- Where on the map a point on the screen is looking at (your own body doesn't count). The server
+-- throws the bomb toward it.
+local function aimAt(ray: Ray): Vector3
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { player.Character :: Instance }
+	local hit = workspace:Raycast(ray.Origin, ray.Direction * 500, params)
+	return if hit then hit.Position else ray.Origin + ray.Direction * 200
+end
+
+local function throwBomb(ray: Ray)
+	if role == "killer" and bombCount > 0 and player.Character then
+		dropBomb:FireServer(aimAt(ray))
+	end
+end
+
+-- The bomb key / gamepad / BOMB button: at the mouse if there is one, otherwise the middle of the screen.
+local function throwFromKey()
+	local camera = workspace.CurrentCamera
+	local point = if UserInputService.MouseEnabled
+		then UserInputService:GetMouseLocation()
+		else camera.ViewportSize / 2
+	throwBomb(camera:ViewportPointToRay(point.X, point.Y))
+end
+
 local function unbindBomb()
 	ContextActionService:UnbindAction(ACTION)
 end
 
 local function bindBomb()
 	ContextActionService:BindAction(ACTION, function(_, state)
-		if state == Enum.UserInputState.Begin and role == "killer" then
-			dropBomb:FireServer()
+		if state == Enum.UserInputState.Begin then
+			throwFromKey()
 		end
 		return Enum.ContextActionResult.Sink
 	end, true, Config.KillerHotel.dropKey, Enum.KeyCode.ButtonX)
@@ -160,7 +187,7 @@ local function showBanner(seconds: number)
 	bannerTitle.Text = if killer then "YOU ARE THE KILLER" else "YOU ARE AN INNOCENT"
 	bannerTitle.TextColor3 = if killer then Colors.Paper else INNOCENT_GREEN
 	bannerSub.Text = if killer
-		then `Press {keyName()} (or the BOMB button) to drop a bomb. Catch everyone before time runs out!`
+		then `Click or tap anywhere to THROW a bomb there (or press {keyName()}). Catch everyone before time runs out!`
 		else "Hide, run, and listen for ticking. Survive until the timer ends!"
 	bannerSub.TextColor3 = if killer then Colors.Paper else Colors.Ink
 	banner.Visible = true
@@ -233,6 +260,19 @@ end
 function Roles.start()
 	dropBomb = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("DropBomb")
 	build()
+	-- Killer: click anywhere (not on a button) to throw a bomb at that spot...
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if not gameProcessed and input.UserInputType == Enum.UserInputType.MouseButton1 then
+			local point = UserInputService:GetMouseLocation()
+			throwBomb(workspace.CurrentCamera:ViewportPointToRay(point.X, point.Y))
+		end
+	end)
+	-- ...or tap anywhere on a phone or tablet (taps, not camera drags).
+	UserInputService.TouchTapInWorld:Connect(function(position, processedByUI)
+		if not processedByUI then
+			throwBomb(workspace.CurrentCamera:ScreenPointToRay(position.X, position.Y))
+		end
+	end)
 	ReplicatedStorage:GetAttributeChangedSignal("InnocentsLeft"):Connect(refreshTag)
 	-- If the round ends some other way (an admin ends it, the level is torn down), drop the role too.
 	ReplicatedStorage:GetAttributeChangedSignal("Phase"):Connect(function()
