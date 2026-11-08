@@ -12,7 +12,7 @@
 --     out. If any innocent is still alive at 0:00, the innocents win. If the killer leaves or is popped,
 --     the innocents win; if every innocent leaves, the killer wins.
 --
--- For now the building is the Bomb Hotel shell; the bigger maze map comes in a later phase.
+-- The building is a tall, wide, three-floor maze (Levels/KillerMaze.luau, layout in Levels/MazeLayout.luau).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,8 +21,8 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(script.Parent.Parent.Remotes)
 local RoundControl = require(script.Parent.Parent.RoundControl)
 local Util = require(script.Parent.Parent.Util)
-local BombHotel = require(script.Parent.BombHotel)
 local Bombs = require(script.Parent.Bombs)
+local KillerMaze = require(script.Parent.KillerMaze)
 
 local KillerHotel = {}
 
@@ -63,8 +63,7 @@ local function innocentsStillIn(stage): number
 end
 
 function KillerHotel.build(def)
-	local stage = BombHotel.build(def)
-	stage.model.Name = "KillerHotel"
+	local stage = KillerMaze.build(def)
 	stage.killer = nil :: Player? -- server only: never put this in an attribute
 	stage.innocents = {} :: { [Player]: boolean }
 	stage.hadInnocents = false
@@ -92,6 +91,11 @@ function KillerHotel.begin(stage, participants: { Player })
 		end
 	end
 	stage.hadInnocents = next(stage.innocents) ~= nil
+
+	-- The killer starts in the middle of the ground floor; the innocents were spread over the hotel.
+	if killer.Character then
+		killer.Character:PivotTo(stage.killerSpawn)
+	end
 	stage.bombs = settings.startBombs
 
 	-- Blasts, fire and falling blocks would also hurt the killer who dropped them, and the innocents have no
@@ -205,7 +209,17 @@ function KillerHotel.finish(stage, alive: { [Player]: boolean })
 	return { winners = winners, text = text }
 end
 
-KillerHotel.freeze = BombHotel.freeze
+-- Round over: everything stops exactly where it is.
+function KillerHotel.freeze(stage)
+	stage.frozen = true
+	for _, part in stage.model:GetDescendants() do
+		if part:IsA("BasePart") and not part.Anchored then
+			part.AssemblyLinearVelocity = Vector3.zero
+			part.AssemblyAngularVelocity = Vector3.zero
+			part.Anchored = true
+		end
+	end
+end
 
 -- The killer's bomb button (the client binds Q / gamepad X / a touch button and sends this).
 Remotes.DropBomb.OnServerEvent:Connect(function(player: Player)

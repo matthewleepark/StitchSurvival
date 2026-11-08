@@ -125,11 +125,11 @@ Config.Levels = {
 		minPlayers = 2, -- a killer needs someone to hunt (Config.KillerHotel.soloTest overrides it)
 		roundTime = 600, -- 10 minutes
 		origin = Vector3.new(0, 20, 1500),
-		width = 96,
-		depth = 96,
-		floors = 5,
-		floorHeight = 16,
-		height = 5 * 16 + 20,
+		width = 224, -- = Config.KillerHotel.map.cells * map.cell
+		depth = 224,
+		floors = 3,
+		floorHeight = 28, -- studs from one floor to the next (the old hotel was 16); walls are 2 less than this
+		height = 3 * 28 + 20,
 	},
 }
 
@@ -149,6 +149,16 @@ Config.KillerHotel = {
 	killerImmuneToOwnBombs = true, -- the killer takes no damage from blasts, fire or falling blocks (an invisible ForceField), so their own bombs can't end the round
 	killerRescue = true, -- the killer's own blasts can drop the floor away; falling out puts them back on the top floor instead of ending the round
 	roleBannerSeconds = 5, -- how long the "you are the killer / an innocent" banner stays up
+	-- The maze (Levels/KillerMaze.luau, layout in Levels/MazeLayout.luau). Each floor is cells x cells.
+	-- Change cells or cell and also set the level's width and depth in Config.Levels to cells * cell.
+	map = {
+		cells = 14, -- 14 x 14 cells a floor
+		cell = 16, -- studs per cell: 14 of corridor between 2-stud walls
+		rampsPerFloor = 2, -- ramps from each floor up to the next
+		loopChance = 0.12, -- of the walls left after the maze is carved, how many are opened to make loops and shortcuts
+		lampSpacing = 2, -- a ceiling lamp in every this-many-th cell, each way
+		seed = nil, -- set a number to get the same maze every round (nil = a new one each round)
+	},
 }
 
 -- Game rooms: the numbered guest-room doors on the hotel balconies. Walk up and hold E to join a
