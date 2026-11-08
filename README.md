@@ -64,3 +64,8 @@ the end-of-round freeze ducking everything, and the low-health heartbeat.
 | `src/client/Danger.luau` | Low-health heartbeat and red screen edges. |
 | `src/client/Grab.luau` | Hold E to grab. |
 | `src/client/TitleScreen.luau` | Main menu with PLAY / HOW TO PLAY. |
+
+## Contributors
+
+- **Matthew Park** ([matthewleepark](https://github.com/matthewleepark)), repo owner: the round loop, Bomb Hotel and its chaos shark, Shark Survival, passives, promo codes and the admin panel.
+- **Rosie Choi** ([rosiesuchoi](https://github.com/rosiesuchoi)): the hotel lobby hub and game rooms, the horror look and flashlight, and Killer Hotel (roles, hidden bombs, the maze map, rooms and doors, parkour), plus the shark jumpscare, drowning rule and sound tweaks.
