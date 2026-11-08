@@ -3,6 +3,20 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 — Matthew (with Claude)
+Branch `matthew/shark-redesign` (from main after PR #3).
+- **New shark body** (`Levels/SharkModel.luau`), shared by the Shark Survival shark (`ClockworkShark.luau`) and the
+  Bomb Hotel chaos shark (`FlyingShark.luau`), replacing the felt/gears look. Low-poly great white built from real
+  triangles (two-wedge trick): slate-navy back over an off-white belly, hinged lower jaw with two rows of teeth top and
+  bottom, red gums, black throat with a cyan glow, glossy black eyes with a cyan glint, five cyan gill slits, scars, a
+  torn dorsal fin, long swept pectorals and a crescent tail. Based on the 4 reference images (low-poly shape, great
+  white face and mouth, abyssal glow).
+- **Cheaper to move:** every triangle is welded to one Root; two Motor6Ds open the jaw and swing the tail, so a frame
+  updates 3 things instead of every part. Built once per size, cached in ServerStorage and cloned.
+- **Checked:** luau-lsp clean for the new and changed files. **Not checked in Studio yet:** the Studio MCP
+  connection dropped before the preview; the look still needs an in-game check (seams at the tail joint, tooth
+  placement, colors in the dark).
+
 ## 2026-11-04 (admin passives) — Matthew (with Claude)
 Same branch.
 - **Admin panel PASSIVES section:** a "Give to" box (blank or "me" = yourself, or the start of a player's name), a

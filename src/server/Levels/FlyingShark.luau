@@ -3,9 +3,7 @@
 -- block at a time. Inside, it flops slowly around the hotel on its own wandering path (it doesn't
 -- chase anyone), biting through any wall, floor or pillar in its way and chomping whoever it hits.
 --
--- Look (based on the reference art): charcoal back, grimy off-white belly, scars and gashes all over,
--- a torn dorsal fin, a chunk bitten out of the tail, a gaping mouth with rows of jagged teeth (one
--- snapped off), dark blood around the jaws and a dead black eye.
+-- Its body is the shared low-poly great white from SharkModel.luau, built at Config.Chaos.sharkScale.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,119 +14,14 @@ local Craft = require(script.Parent.Parent.Craft)
 local Remotes = require(script.Parent.Parent.Remotes)
 local Util = require(script.Parent.Parent.Util)
 local Bombs = require(script.Parent.Bombs)
+local SharkModel = require(script.Parent.SharkModel)
 
 local FlyingShark = {}
 
-local CHARCOAL = Color3.fromRGB(42, 46, 52)
-local BELLY = Color3.fromRGB(196, 194, 186)
-local SCAR = Color3.fromRGB(150, 146, 140)
-local GASH = Color3.fromRGB(92, 22, 26)
-local BLOOD = Color3.fromRGB(70, 12, 16)
-local TOOTH = Color3.fromRGB(232, 228, 214)
-local SKIN = Enum.Material.SmoothPlastic
+local DUST = Color3.fromRGB(42, 48, 60) -- the puff it leaves when it vanishes
 local BITE_RANGE = 6
 
 local NO_COLLIDE = { CanCollide = false, CanQuery = false, CanTouch = false }
-
-local function part(model: Instance, size: Vector3, color: Color3, material: Enum.Material?, shape: Enum.PartType?): Part
-	local p = Craft.block(model, CFrame.identity, size, color, material or SKIN, NO_COLLIDE)
-	if shape then
-		p.Shape = shape
-	end
-	p.CastShadow = false
-	return p
-end
-
--- Builds the shark around the origin, facing +X. Returns the model, its parts with their offsets
--- (for moving it), and the lower jaw (which opens and shuts).
-local function build(parent: Instance)
-	local model = Instance.new("Model")
-	model.Name = "ChaosShark"
-	local pieces = {}
-	local function add(p: Part, offset: CFrame)
-		table.insert(pieces, { part = p, offset = offset })
-	end
-
-	-- Body: a thick charcoal torpedo with a pale belly.
-	add(part(model, Vector3.new(12, 5.6, 5.2), CHARCOAL, SKIN, Enum.PartType.Cylinder), CFrame.identity)
-	add(part(model, Vector3.new(5.8, 5.8, 5.8), CHARCOAL, SKIN, Enum.PartType.Ball), CFrame.new(5.2, 0.2, 0))
-	add(part(model, Vector3.new(11, 2.2, 4.6), BELLY, SKIN), CFrame.new(0.6, -2, 0))
-	add(part(model, Vector3.new(4.6, 3.6, 3.6), CHARCOAL, SKIN, Enum.PartType.Cylinder), CFrame.new(-7.5, 0, 0))
-	add(part(model, Vector3.new(3, 2.4, 2.4), CHARCOAL, SKIN, Enum.PartType.Cylinder), CFrame.new(-10.5, 0, 0))
-
-	-- Tail fin, with a chunk bitten out of the top lobe.
-	add(part(model, Vector3.new(0.4, 5.4, 2.2), CHARCOAL, SKIN), CFrame.new(-12.4, 2.2, 0) * CFrame.Angles(0, 0, math.rad(-35)))
-	add(part(model, Vector3.new(0.4, 3.6, 2), CHARCOAL, SKIN), CFrame.new(-12.2, -1.8, 0) * CFrame.Angles(0, 0, math.rad(35)))
-	add(part(model, Vector3.new(0.5, 1.2, 1.2), BLOOD, SKIN), CFrame.new(-13.2, 3.4, 0) * CFrame.Angles(0, 0, math.rad(-35))) -- the bitten edge
-
-	-- Torn dorsal fin: two pieces with a notch ripped out between them.
-	add(part(model, Vector3.new(3.4, 4.4, 0.5), CHARCOAL, SKIN), CFrame.new(-0.4, 4, 0) * CFrame.Angles(0, 0, math.rad(-28)))
-	add(part(model, Vector3.new(1.4, 1.6, 0.55), GASH, SKIN), CFrame.new(-0.9, 5.2, 0) * CFrame.Angles(0, 0, math.rad(-28)))
-	-- Pectoral fins.
-	for _, side in { -1, 1 } do
-		add(part(model, Vector3.new(4, 0.4, 2.6), CHARCOAL, SKIN), CFrame.new(1.6, -2.4, side * 3.2) * CFrame.Angles(math.rad(side * -20), math.rad(side * 30), 0))
-	end
-
-	-- Scars and gashes along both sides.
-	local scars = {
-		{ 2, 1.2, 0.18, 3.4, 25, SCAR },
-		{ -2.5, 0.4, 0.14, 4.2, -15, SCAR },
-		{ -5, 1.4, 0.2, 2.6, 40, GASH },
-		{ 0, -0.6, 0.22, 3, 70, GASH },
-		{ 3.6, 2, 0.12, 2.2, -50, SCAR },
-	}
-	for _, side in { -1, 1 } do
-		for _, s in scars do
-			add(part(model, Vector3.new(s[4], s[3], 0.1), s[6], SKIN), CFrame.new(s[1], s[2], side * 2.62) * CFrame.Angles(0, 0, math.rad(s[5])))
-		end
-		-- Gills.
-		for i = 0, 3 do
-			add(part(model, Vector3.new(0.15, 2, 0.1), Color3.fromRGB(28, 30, 34), SKIN), CFrame.new(2.6 - i * 0.55, 0.2, side * 2.65))
-		end
-		-- Dead black eye with a thin pale ring.
-		add(part(model, Vector3.new(0.12, 1, 1), SCAR, SKIN, Enum.PartType.Cylinder), CFrame.new(6.3, 1.2, side * 2.35) * CFrame.Angles(0, math.rad(90), 0))
-		add(part(model, Vector3.new(0.2, 0.8, 0.8), Color3.fromRGB(8, 8, 10), Enum.Material.Glass, Enum.PartType.Cylinder), CFrame.new(6.35, 1.2, side * 2.42) * CFrame.Angles(0, math.rad(90), 0))
-	end
-
-	-- Upper jaw: rows of jagged teeth (one snapped short) and blood around the mouth.
-	add(part(model, Vector3.new(3.4, 0.8, 4.4), BELLY, SKIN), CFrame.new(6.4, -1.1, 0))
-	add(part(model, Vector3.new(3.6, 0.6, 4.6), BLOOD, SKIN), CFrame.new(6.3, -1.5, 0))
-	for i = 0, 5 do
-		for _, z in { -1.7, -0.6, 0.6, 1.7 } do
-			local length = if i == 2 and z == 0.6 then 0.3 else 0.9 -- the broken one
-			add(part(model, Vector3.new(0.3, length, 0.3), TOOTH, SKIN), CFrame.new(5.1 + i * 0.45, -1.9 - length / 2 + 0.45, z) * CFrame.Angles(0, 0, math.rad(45)))
-		end
-	end
-
-	-- Lower jaw on a hinge, with its own teeth and blood.
-	local jaw = Instance.new("Model")
-	jaw.Name = "Jaw"
-	jaw.Parent = model
-	local jawPieces = {}
-	local function addJaw(p: Part, offset: CFrame)
-		p.Parent = jaw
-		table.insert(jawPieces, { part = p, offset = offset })
-	end
-	addJaw(part(model, Vector3.new(3.8, 0.9, 4.2), BELLY, SKIN), CFrame.new(1.9, -0.45, 0))
-	addJaw(part(model, Vector3.new(3.6, 0.5, 4.3), BLOOD, SKIN), CFrame.new(1.9, 0.05, 0))
-	for i = 0, 5 do
-		for _, z in { -1.6, -0.5, 0.5, 1.6 } do
-			addJaw(part(model, Vector3.new(0.3, 0.8, 0.3), TOOTH, SKIN), CFrame.new(0.4 + i * 0.5, 0.5, z) * CFrame.Angles(0, 0, math.rad(45)))
-		end
-	end
-
-	model.Parent = parent
-	Craft.tag(model, "Hazard") -- the Spooky Sense passive shows it through walls
-	return model, pieces, jawPieces
-end
-
--- Scales the whole shark up (sizes and positions), so one big shark is built from the same plan.
-local function scaleUp(list, scale: number)
-	for _, piece in list do
-		piece.part.Size *= scale
-		piece.offset = CFrame.new(piece.offset.Position * scale) * piece.offset.Rotation
-	end
-end
 
 -- The chaos shark: a red crack warns where it'll come in, it chews its way through the outer wall,
 -- then it flies around the hotel on its own wandering path until the round ends, chewing through
@@ -171,9 +64,9 @@ function FlyingShark.attack(stage, ctx)
 	end
 
 	-- It appears just outside the wall, facing in.
-	local model, pieces, jawPieces = build(stage.model)
-	scaleUp(pieces, S)
-	scaleUp(jawPieces, S)
+	local shark = SharkModel.new(S, "ChaosShark", stage.model)
+	local model = shark.model
+	Craft.tag(model, "Hazard") -- the Spooky Sense passive shows it through walls
 	local position = entry + side.normal * 9 * S
 	local heading = -side.normal
 	local bitten: { [Player]: boolean } = {}
@@ -201,7 +94,7 @@ function FlyingShark.attack(stage, ctx)
 			finished = true
 			connection:Disconnect()
 			if model.Parent and not stage.frozen then
-				Remotes.fireAll("Poof", { position = position, color = CHARCOAL })
+				Remotes.fireAll("Poof", { position = position, color = DUST })
 				model:Destroy()
 			end
 			return
@@ -230,7 +123,7 @@ function FlyingShark.attack(stage, ctx)
 			open = (math.sin(clock * 14) + 1) / 2 * 0.7
 			if chewTimer <= 0 then
 				chewTimer = settings.sharkChew
-				Util.playSound("Chomp", pieces[1].part)
+				Util.playSound("Chomp", shark.root)
 				Bombs.breakBlock(stage, blocking, position)
 			end
 		else
@@ -243,22 +136,16 @@ function FlyingShark.attack(stage, ctx)
 		local wiggle = math.sin(clock * 7) * 0.22
 		local bob = Vector3.new(0, math.sin(clock * 3) * 0.6 * S, 0)
 		local rootFrame = CFrame.lookAt(position + bob, position + bob + heading) * CFrame.Angles(0, math.rad(90) + wiggle, 0) * CFrame.Angles(roll, 0, 0)
-		for _, piece in pieces do
-			piece.part.CFrame = rootFrame * piece.offset
-		end
-		local hinge = rootFrame * CFrame.new(4.2 * S, -1.6 * S, 0) * CFrame.Angles(0, 0, -open)
-		for _, piece in jawPieces do
-			piece.part.CFrame = hinge * piece.offset
-		end
+		shark:pose(rootFrame, open, math.sin(clock * 7 - 0.9) * 0.45)
 
 		-- Chomp anyone it runs into (each player only once per round).
-		local mouth = rootFrame * Vector3.new(6.5 * S, -1 * S, 0)
+		local mouth = shark:mouthPosition()
 		for _, player in Players:GetPlayers() do
 			local humanoid = Util.aliveHumanoid(player)
 			local playerRoot = Util.rootPart(player)
 			if humanoid and playerRoot and not bitten[player] and (playerRoot.Position - mouth).Magnitude < BITE_RANGE * S then
 				bitten[player] = true
-				Util.playSound("Chomp", pieces[1].part)
+				Util.playSound("Chomp", shark.root)
 				if Util.kill(humanoid) then
 					Remotes.fire(player, "Jumpscare", {}) -- the victim's screen only
 				end
