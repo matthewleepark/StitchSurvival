@@ -465,7 +465,14 @@ function HotelLobby.build()
 
 	-- The passive machine stands on the open floor left of the runner, between the left pillars and the left
 	-- sofas, facing the entrance: in plain view as you walk in, but not in anyone's way.
-	local machine = Pod.buildGearMachine(model, ctx.at(-22, 0, 2))
+	local machineAt = ctx.at(-22, 0, 2)
+	local machine = Pod.buildGearMachine(model, machineAt)
+	-- Turned to face the spawn pad, so its front (and price tag) greets players as they arrive. The machine is
+	-- built facing +Z; lookAt points -Z at the spawn, so add a half turn.
+	local spawnAt = ctx.at(0, 0, 28)
+	local facing = CFrame.lookAt(machineAt, Vector3.new(spawnAt.X, machineAt.Y, spawnAt.Z)) * CFrame.Angles(0, math.pi, 0)
+	local machineModel = machine.Parent :: Model
+	machineModel:PivotTo(facing * CFrame.new(-machineAt) * machineModel:GetPivot())
 
 	-- Soft hidden fill lights in a grid over the floor and along the balcony corridors, so every
 	-- area can be seen. They don't flicker; the visible lamps still do.

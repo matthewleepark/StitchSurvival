@@ -3,6 +3,14 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 (big admin panel, machine faces spawn) — Matthew (with Claude)
+Same branch.
+- **Admin panel:** now a big window in the middle of the screen (62% x 78%, up to 820 x 640; nearly full screen on
+  phones) with a title and an X, buttons in a grid of 3 (2 on phones), bigger text and text boxes. The ADMIN
+  button is bigger (150 x 40, gold outline). F2 still toggles it.
+- **Passive machine** is turned to face the spawn pad (Rosie's HotelLobby), so its front greets new arrivals.
+- Checked in Studio. luau-lsp: only the 3 old errors.
+
 ## 2026-11-08 (lobby: middle table out, passive machine moved) — Matthew (with Claude)
 Same branch. **Touches Rosie's HotelLobby.**
 - Removed the marble centerpiece table (with the bouquet) from the middle of the red runner, so the runner is clear

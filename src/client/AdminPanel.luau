@@ -128,71 +128,129 @@ local function build()
 
 	local gui = new("ScreenGui", { Name = "AdminPanel", ResetOnSpawn = false, DisplayOrder = 20 }, player:WaitForChild("PlayerGui"))
 
-	-- On phones the spot under the health ribbon belongs to the passive tag and the menu, so the admin
-	-- button sits to the right of the score card instead.
+	-- The ADMIN button: big and easy to hit. On phones it sits to the right of the score card (the spot under
+	-- the health ribbon belongs to the passive tag and the menu).
 	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 	local toggle = new("TextButton", {
 		Position = if touch then UDim2.fromOffset(226, 16) else UDim2.fromOffset(16, 140),
-		Size = UDim2.fromOffset(90, 30),
+		Size = UDim2.fromOffset(150, 40),
 		BackgroundColor3 = Colors.Ink,
 		Font = FONT,
-		TextSize = 16,
+		TextSize = 20,
 		TextColor3 = Colors.Gold,
-		Text = "ADMIN (F2)",
+		Text = if touch then "\u{1F6E0}\u{FE0F} ADMIN" else "\u{1F6E0}\u{FE0F} ADMIN (F2)",
+		AutoButtonColor = false,
 	}, gui)
-	new("UICorner", { CornerRadius = UDim.new(0, 8) }, toggle)
+	new("UICorner", { CornerRadius = UDim.new(0, 10) }, toggle)
+	new("UIStroke", { Thickness = 2, Color = Colors.Gold, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, toggle)
 	TitleScreen.wireButton(toggle)
 
+	-- The panel: a big window in the middle of the screen, buttons in a grid of three (two on narrow screens).
 	local panel = new("Frame", {
-		Position = if touch then UDim2.fromOffset(226, 52) else UDim2.fromOffset(16, 178),
-		-- Stops above the menu buttons in the bottom-left corner (it scrolls, so it can be short).
-		Size = if touch then UDim2.fromOffset(250, 280) else UDim2.new(0, 250, 1, -(178 + 190)),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.52),
+		Size = if touch then UDim2.fromScale(0.94, 0.86) else UDim2.fromScale(0.62, 0.78),
 		BackgroundColor3 = Colors.Paper,
 		Visible = false,
+		ZIndex = 5,
 	}, gui)
-	new("UICorner", { CornerRadius = UDim.new(0, 12) }, panel)
-	new("UIStroke", { Thickness = 3, Color = Colors.Ink }, panel)
-	new("UISizeConstraint", { MinSize = Vector2.new(250, 150), MaxSize = Vector2.new(250, 420) }, panel)
+	new("UICorner", { CornerRadius = UDim.new(0, 16) }, panel)
+	new("UIStroke", { Thickness = 4, Color = Colors.Ink }, panel)
+	new("UISizeConstraint", { MinSize = Vector2.new(320, 240), MaxSize = Vector2.new(820, 640) }, panel)
+
+	new("TextLabel", {
+		Position = UDim2.fromOffset(18, 10),
+		Size = UDim2.new(1, -90, 0, 40),
+		BackgroundTransparency = 1,
+		Font = FONT,
+		TextScaled = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Colors.Felt,
+		Text = "\u{1F6E0}\u{FE0F} ADMIN PANEL",
+		ZIndex = 6,
+	}, panel)
+	local close = new("TextButton", {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 10),
+		Size = UDim2.fromOffset(44, 44),
+		BackgroundColor3 = Colors.Felt,
+		Font = FONT,
+		TextSize = 24,
+		TextColor3 = Color3.new(1, 1, 1),
+		Text = "X",
+		AutoButtonColor = false,
+		ZIndex = 6,
+	}, panel)
+	new("UICorner", { CornerRadius = UDim.new(1, 0) }, close)
+	new("UIStroke", { Thickness = 2, Color = Colors.Ink, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, close)
+	TitleScreen.wireButton(close)
+	close.Activated:Connect(function()
+		panel.Visible = false
+	end)
 
 	local list = new("ScrollingFrame", {
-		Position = UDim2.fromOffset(8, 8),
-		Size = UDim2.new(1, -16, 1, -16),
+		Position = UDim2.fromOffset(16, 62),
+		Size = UDim2.new(1, -32, 1, -76),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		ScrollBarThickness = 6,
+		ScrollBarThickness = 8,
 		AutomaticCanvasSize = Enum.AutomaticSize.Y,
 		CanvasSize = UDim2.new(),
+		ZIndex = 6,
 	}, panel)
-	new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, list)
+	new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, list)
+	new("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingBottom = UDim.new(0, 8) }, list)
 
 	local order = 0
+	local columns = if touch then 2 else 3
+	local currentGrid: Frame? = nil -- the grid the next buttons go in (a heading or a text box starts a new one)
 	local function heading(text: string)
 		order += 1
+		currentGrid = nil
 		new("TextLabel", {
 			LayoutOrder = order,
-			Size = UDim2.new(1, 0, 0, 22),
+			Size = UDim2.new(1, 0, 0, 28),
 			BackgroundTransparency = 1,
 			Font = FONT,
-			TextSize = 16,
+			TextSize = 22,
 			TextColor3 = Colors.Felt,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Text = text,
+			ZIndex = 6,
 		}, list)
 	end
 	local function button(text: string, onClick: (TextButton) -> ()): TextButton
+		if not currentGrid then
+			order += 1
+			local grid = new("Frame", {
+				LayoutOrder = order,
+				Size = UDim2.new(1, 0, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y,
+				BackgroundTransparency = 1,
+				ZIndex = 6,
+			}, list)
+			new("UIGridLayout", {
+				CellSize = UDim2.new(1 / columns, -8, 0, 48),
+				CellPadding = UDim2.fromOffset(8, 8),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			}, grid)
+			currentGrid = grid
+		end
 		order += 1
 		local b = new("TextButton", {
 			LayoutOrder = order,
-			Size = UDim2.new(1, -8, 0, 30),
 			BackgroundColor3 = Colors.Cardboard,
 			Font = FONT,
-			TextSize = 15,
+			TextSize = 17,
+			TextWrapped = true,
 			TextColor3 = Colors.Ink,
 			Text = text,
 			AutoButtonColor = false,
-		}, list)
-		new("UICorner", { CornerRadius = UDim.new(0, 6) }, b)
-		new("UIStroke", { Thickness = 1.5, Color = Colors.Ink, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
+			ZIndex = 7,
+		}, currentGrid)
+		new("UICorner", { CornerRadius = UDim.new(0, 10) }, b)
+		new("UIStroke", { Thickness = 2, Color = Colors.Ink, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, b)
+		new("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }, b)
 		TitleScreen.wireButton(b)
 		b.Activated:Connect(function()
 			onClick(b)
@@ -278,12 +336,14 @@ local function build()
 	heading("PLAYERS")
 	local function box(placeholder: string): TextBox
 		order += 1
+		currentGrid = nil
 		local input = new("TextBox", {
 			LayoutOrder = order,
-			Size = UDim2.new(1, -8, 0, 30),
+			ZIndex = 7,
+			Size = UDim2.new(1, -8, 0, 40),
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			Font = FONT,
-			TextSize = 15,
+			TextSize = 18,
 			TextColor3 = Colors.Ink,
 			PlaceholderText = placeholder,
 			Text = "",
@@ -327,12 +387,14 @@ local function build()
 	-- Passives: type a player's name to give to them, or leave it blank for yourself.
 	heading("PASSIVES")
 	order += 1
+	currentGrid = nil
 	local targetBox = new("TextBox", {
 		LayoutOrder = order,
-		Size = UDim2.new(1, -8, 0, 30),
+		ZIndex = 7,
+		Size = UDim2.new(1, -8, 0, 40),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		Font = FONT,
-		TextSize = 15,
+		TextSize = 18,
 		TextColor3 = Colors.Ink,
 		PlaceholderText = "Give to: me (or type a player's name)",
 		Text = "",
