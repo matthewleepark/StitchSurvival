@@ -1,9 +1,9 @@
 -- The hub: a grand hotel lobby where players arrive, walk around, and roll for passives between
 -- levels. Same contract as Pod.build(): returns { model, machine, spawn }. The next map is voted on at the
--- reception desk (server/Vote.luau); the numbered guest-room doors upstairs are just decoration.
+-- voting stage by the back wall (server/Vote.luau); the numbered guest-room doors upstairs are just decoration.
 --
 -- Layout (the lobby is Config.Pod; x is left-right, z runs from the back wall (-) to the entrance (+)):
---   back wall   elevators | reception desk with keys and mailboxes | fireplace | gear machine
+--   back wall   elevators | the map-vote stage (where the reception desk was), keys and mailboxes | fireplace
 --   side walls  guest-room balconies upstairs, a library nook (left) and a piano nook (right) below
 --   front wall  entrance doors, tall windows and a clock
 --   middle      red runner rug, marble centerpiece, two lounge sets, six marble pillars
@@ -310,12 +310,38 @@ local function buildMezzanine(ctx)
 	end
 end
 
--- Reception, fireplace, elevators, gear machine -----------------------------------------
+-- The map-vote stage, where the reception desk used to be: a low marble dais on a mahogany skirt with a brass
+-- edge, and three brass-rimmed slots the map pads rise out of between rounds (server/Vote.luau).
+local function buildVoteStage(ctx)
+	local model, decor, at = ctx.model, ctx.decor, ctx.at
+	local S = Config.Vote.stage
+	local count = Config.Vote.choices
+	local width = (count - 1) * S.spacing + S.pad + 3
+	local depth = S.pad + 6 -- room for the signs behind the pads
+	local center = at(0, 0, S.z - 1)
+	box(model, center.X, center.Y + (S.height - 0.1) / 2, center.Z, width, S.height - 0.1, depth, L.Panel, M.Wood) -- skirt
+	box(model, center.X, center.Y + S.height - 0.05, center.Z, width + 0.4, 0.1, depth + 0.4, L.MarbleShade, MARBLE) -- marble top
+	for _, side in { -1, 1 } do -- brass edge all round
+		box(decor, center.X, center.Y + S.height - 0.15, center.Z + side * (depth / 2 + 0.25), width + 0.6, 0.3, 0.15, L.Brass, M.Metal, DECOR)
+		box(decor, center.X + side * (width / 2 + 0.25), center.Y + S.height - 0.15, center.Z, 0.15, 0.3, depth + 0.6, L.Brass, M.Metal, DECOR)
+	end
+	for i = 1, count do
+		local x = (i - (count + 1) / 2) * S.spacing
+		local slot = at(x, S.height + 0.01, S.z)
+		box(decor, slot.X, slot.Y, slot.Z, S.pad - 0.2, 0.02, S.pad - 0.2, L.MarbleDark, MARBLE, DECOR)
+		for _, side in { -1, 1 } do
+			box(decor, slot.X + side * S.pad / 2, slot.Y + 0.05, slot.Z, 0.3, 0.1, S.pad + 0.3, L.Brass, M.Metal, DECOR)
+			box(decor, slot.X, slot.Y + 0.05, slot.Z + side * S.pad / 2, S.pad + 0.3, 0.1, 0.3, L.Brass, M.Metal, DECOR)
+		end
+	end
+end
+
+-- Map-vote stage, fireplace, elevators ------------------------------------------------------
 
 local function buildBackWall(ctx)
 	local decor, at = ctx.decor, ctx.at
 
-	Props.reception(decor, CFrame.new(at(0, 0, -27)))
+	buildVoteStage(ctx) -- where the reception desk used to be
 	Props.keyBoard(decor, ctx.wall("back", -7, 11, 0))
 	Props.mailboxes(decor, ctx.wall("back", 10, 11, 0))
 
@@ -329,7 +355,7 @@ local function buildBackWall(ctx)
 		})
 	end)
 	ctx.wallItem("back", 0, 22, 0.6, function(item)
-		Craft.sign(item, Vector3.zero, 12, 3.4, "RECEPTION", { faceColor = L.Cream, boardColor = L.PanelDark, stitchColor = L.Brass })
+		Craft.sign(item, Vector3.zero, 12, 3.4, "MAP VOTE", { faceColor = L.Cream, boardColor = L.PanelDark, stitchColor = L.Brass })
 	end)
 
 	for _, along in { -34, -24 } do

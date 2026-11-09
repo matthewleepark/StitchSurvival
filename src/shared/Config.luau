@@ -11,12 +11,15 @@ Config.Admins = { "3HBQ", "ACKworld", "suweetiepie" }
 Config.MaxPlayers = 12
 Config.MinPlayers = 1 -- players needed in the server before the map vote starts
 
--- Map vote (server/Vote.luau): between rounds, pads for a few maps pop up out of the floor in front of the
--- reception desk. Stand on one to vote for it (your vote stays until you stand on another). When the timer
--- runs out the map with the most votes is played by everyone in the server (a tie, or no votes, is picked at
--- random). Maps that need more players than are here (Killer Hotel, Hide & Seek need 2) aren't offered.
+-- Map vote (server/Vote.luau): where the reception desk used to be there's a marble voting stage with three
+-- brass-rimmed slots. Between rounds a map pad rises out of each slot. Stand on one to vote for it (your vote
+-- stays until you stand on another). When the timer runs out the map with the most votes is played by everyone
+-- in the server (a tie, or no votes, is picked at random). A map that needs more players than are here (Killer
+-- Hotel and Hide & Seek need 2) still shows, locked, with "Needs 2 players" on its sign.
 Config.Vote = {
 	choices = 3, -- how many maps pop up each time (picked at random from Config.Levels)
+	-- The stage, in lobby coordinates (x across the room, z from the back wall at -40 toward the doors).
+	stage = { z = -27, spacing = 10, pad = 8, height = 0.8 },
 	seconds = 25, -- how long the vote lasts; lower it (e.g. 8) while testing
 	breakSeconds = 4, -- a short breather in the lobby after a round before the pads pop up
 }

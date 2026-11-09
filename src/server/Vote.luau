@@ -1,11 +1,14 @@
--- The map vote. Between rounds a few map pads pop up out of the floor in front of the reception desk, each
--- with a sign: the map's icon and name and how many votes it has. Stand on a pad to vote for that map; your
--- vote stays with the last pad you stood on. When the vote closes the map with the most votes wins (a tie,
--- or nobody voting, is picked at random), the winning pad flashes, and the pads sink away again.
--- Numbers are in Config.Vote; each map's icon and color are on its Config.Levels entry.
+-- The map vote. Where the reception desk used to be there's a marble voting stage with three brass-rimmed slots
+-- (built by Levels/HotelLobby.luau). Between rounds a map pad rises out of each slot, with a sign in the lobby's
+-- style (mahogany board, cream face, brass trim): the map's icon and name and how many votes it has. Stand on a
+-- pad to vote for that map; your vote stays with the last pad you stood on. A map that needs more players than
+-- are here is shown locked ("Needs 2 players") and can't be voted for. When the vote closes the map with the
+-- most votes wins (a tie, or nobody voting, is picked at random from the open maps), the winning pad flashes,
+-- and the pads sink back into the stage.
+-- Numbers and the stage layout are in Config.Vote; each map's icon and color are on its Config.Levels entry.
 --
---   Vote.choices(playerCount)  which maps to offer (only ones with enough players to work)
---   Vote.open(choices)         pop the pads up and start counting
+--   Vote.choices(playerCount)  which maps to offer: { { def, locked } }
+--   Vote.open(choices)         raise the pads and start counting
 --   Vote.close()               the winning map's Config.Levels entry; the pads go away
 --   Vote.cancel()              take the pads away without a result (an admin started a round)
 
@@ -21,17 +24,18 @@ local Util = require(script.Parent.Util)
 local Colors = Config.Colors
 local L = Config.LobbyColors
 local M = Craft.Material
-local PAD = 8 -- studs across
-local SPACING = 11 -- between pad centers
-local PAD_Z = -17 -- in front of the reception desk (its front is at about z = -23.5 in lobby coordinates)
-local RISE = 5 -- how far below the floor the pads start before popping up
+local STAGE = Config.Vote.stage
+local PAD = STAGE.pad
+local RISE = 4 -- how far down inside the stage the pads start before rising
 
 local Vote = {}
 
-type Pad = { def: any, model: Model, base: BasePart, center: Vector3, votesLabel: TextLabel }
+export type Choice = { def: any, locked: boolean }
+type Pad = { def: any, locked: boolean, model: Model, glow: BasePart, center: Vector3, votesLabel: TextLabel }
 
 local pads: { Pad } = {}
 local votes: { [Player]: number } = {} -- player -> index into pads
+local warned: { [Player]: number } = {} -- last "needs more players" popup, so it isn't spammed
 local counting = false
 
 -- How many players a map needs (Killer Hotel and Hide & Seek need someone to hunt, unless testing solo).
@@ -44,17 +48,34 @@ local function minimumFor(def): number
 	return def.minPlayers or Config.MinPlayers
 end
 
--- Up to Config.Vote.choices maps, picked at random from the ones that work with this many players.
-function Vote.choices(playerCount: number): { any }
-	local pool = {}
+-- Config.Vote.choices maps at random. Maps that need more players than are here come out locked, but at least
+-- one is always open.
+function Vote.choices(playerCount: number): { Choice }
+	local open, locked = {}, {}
 	for _, def in Config.Levels do
-		if playerCount >= minimumFor(def) then
-			table.insert(pool, def)
+		table.insert(if playerCount >= minimumFor(def) then open else locked, def)
+	end
+	local picked: { Choice } = {}
+	if #open > 0 then
+		table.insert(picked, { def = table.remove(open, math.random(1, #open)), locked = false })
+	end
+	local rest: { Choice } = {}
+	for _, def in open do
+		table.insert(rest, { def = def, locked = false })
+	end
+	for _, def in locked do
+		table.insert(rest, { def = def, locked = true })
+	end
+	while #picked < Config.Vote.choices and #rest > 0 do
+		local choice = table.remove(rest, math.random(1, #rest))
+		if choice then
+			table.insert(picked, choice)
 		end
 	end
-	local picked = {}
-	while #picked < Config.Vote.choices and #pool > 0 do
-		table.insert(picked, table.remove(pool, math.random(1, #pool)))
+	-- Shuffle so the open map isn't always on the left.
+	for i = #picked, 2, -1 do
+		local j = math.random(1, i)
+		picked[i], picked[j] = picked[j], picked[i]
 	end
 	return picked
 end
@@ -68,52 +89,65 @@ local function new(className: string, props, parent: Instance?): any
 	return instance
 end
 
--- One pad: a glowing square with a brass rim, and a sign standing behind it facing the lobby.
-local function buildPad(def, center: Vector3): Pad
-	local color = def.color or Colors.Gold
+-- A map's color, softened toward the lobby's dark wood so it glows warmly instead of shouting.
+local function tone(color: Color3, amount: number): Color3
+	return color:Lerp(L.PanelDark, amount)
+end
+
+-- One pad: a dark marble slab with a softly glowing inlay in the map's color and a brass rim, and a sign on
+-- brass legs behind it facing the lobby.
+local function buildPad(choice: Choice, center: Vector3): Pad
+	local def, locked = choice.def, choice.locked
+	local color = if locked then L.Plaster else (def.color or Colors.Gold)
 	local model = new("Model", { Name = `VotePad_{def.name}` })
-	local base = Craft.block(model, CFrame.new(center + Vector3.new(0, 0.15, 0)), Vector3.new(PAD, 0.3, PAD), color, M.Neon, { CanCollide = false, CanQuery = false })
-	base.Transparency = 0.3
-	new("PointLight", { Color = color, Range = 14, Brightness = 1.2 }, base)
-	for _, side in { -1, 1 } do
-		Craft.block(model, CFrame.new(center + Vector3.new(side * PAD / 2, 0.25, 0)), Vector3.new(0.4, 0.5, PAD + 0.4), L.Brass, M.Metal, Craft.DECOR)
-		Craft.block(model, CFrame.new(center + Vector3.new(0, 0.25, side * PAD / 2)), Vector3.new(PAD + 0.4, 0.5, 0.4), L.Brass, M.Metal, Craft.DECOR)
+
+	Craft.block(model, CFrame.new(center + Vector3.new(0, 0.15, 0)), Vector3.new(PAD - 0.3, 0.3, PAD - 0.3), L.MarbleDark, Enum.Material.Marble, { CanCollide = false })
+	local glow = Craft.block(model, CFrame.new(center + Vector3.new(0, 0.31, 0)), Vector3.new(PAD - 1.6, 0.04, PAD - 1.6), tone(color, 0.35), M.Neon, Craft.DECOR)
+	glow.Transparency = if locked then 0.85 else 0.55
+	Craft.block(model, CFrame.new(center + Vector3.new(0, 0.33, 0)), Vector3.new(PAD - 2.6, 0.04, PAD - 2.6), L.MarbleDark, Enum.Material.Marble, Craft.DECOR)
+	for _, side in { -1, 1 } do -- brass rim
+		Craft.block(model, CFrame.new(center + Vector3.new(side * (PAD / 2 - 0.25), 0.35, 0)), Vector3.new(0.3, 0.1, PAD - 0.2), L.Brass, M.Metal, Craft.DECOR)
+		Craft.block(model, CFrame.new(center + Vector3.new(0, 0.35, side * (PAD / 2 - 0.25))), Vector3.new(PAD - 0.2, 0.1, 0.3), L.Brass, M.Metal, Craft.DECOR)
+	end
+	if not locked then
+		new("PointLight", { Color = color, Range = 12, Brightness = 0.9, Shadows = false }, glow)
 	end
 
-	-- The sign: on two brass legs at the back edge of the pad, facing toward the entrance (+Z).
-	local signCenter = center + Vector3.new(0, 6.2, -PAD / 2 - 0.4)
+	-- The sign, styled like the lobby's own: mahogany board, cream face, brass trim and legs.
+	local signCenter = center + Vector3.new(0, 5.6, -PAD / 2 - 0.3)
 	for _, side in { -1, 1 } do
-		Craft.cylinder(model, center + Vector3.new(side * 3.4, 2.1, -PAD / 2 - 0.4), 4.2, 0.35, "Y", L.Brass, M.Metal)
+		Craft.cylinder(model, center + Vector3.new(side * 3.3, 1.8, -PAD / 2 - 0.3), 3.6, 0.3, "Y", L.Brass, M.Metal)
 	end
-	Craft.block(model, CFrame.new(signCenter), Vector3.new(PAD + 0.6, 4.6, 0.4), L.PanelDark, M.Wood)
-	Craft.block(model, CFrame.new(signCenter + Vector3.new(0, 2.45, 0.1)), Vector3.new(PAD + 0.6, 0.3, 0.5), color, M.Neon, Craft.DECOR)
-	local face = Craft.block(model, CFrame.new(signCenter + Vector3.new(0, 0, 0.25)), Vector3.new(PAD, 4, 0.1), Colors.Paper, Enum.Material.SmoothPlastic, Craft.DECOR)
+	Craft.block(model, CFrame.new(signCenter), Vector3.new(PAD + 0.4, 4.4, 0.4), L.PanelDark, M.Wood)
+	Craft.block(model, CFrame.new(signCenter + Vector3.new(0, 2.3, 0.05)), Vector3.new(PAD + 0.6, 0.25, 0.5), L.Brass, M.Metal, Craft.DECOR)
+	Craft.block(model, CFrame.new(signCenter + Vector3.new(0, 1.55, 0.25)), Vector3.new(PAD - 0.6, 0.08, 0.05), tone(color, 0.2), M.Neon, Craft.DECOR) -- a thin glowing line in the map's color
+	local face = Craft.block(model, CFrame.new(signCenter + Vector3.new(0, -0.1, 0.22)), Vector3.new(PAD - 0.4, 3.6, 0.06), if locked then L.Plaster else L.Cream, Enum.Material.SmoothPlastic, Craft.DECOR)
 	local gui = new("SurfaceGui", {
 		Face = Enum.NormalId.Back, -- +Z, toward the players
 		SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud,
 		PixelsPerStud = 50,
-		LightInfluence = 0,
+		LightInfluence = 0.25, -- a little of the lobby's warm light, so it sits in the room
 	}, face)
 	local function line(text: string, y: number, height: number, textColor: Color3): TextLabel
 		return new("TextLabel", {
 			BackgroundTransparency = 1,
-			Position = UDim2.fromScale(0.04, y),
-			Size = UDim2.fromScale(0.92, height),
+			Position = UDim2.fromScale(0.05, y),
+			Size = UDim2.fromScale(0.9, height),
 			Font = Enum.Font.FredokaOne,
 			TextScaled = true,
 			TextColor3 = textColor,
 			Text = text,
 		}, gui)
 	end
-	line(`{def.icon or ""} {string.upper(def.title)}`, 0.05, 0.36, color:Lerp(Colors.Ink, 0.25))
-	local votesLabel = line("0 votes", 0.43, 0.3, Colors.Ink)
-	line("Stand here to vote!", 0.76, 0.18, Color3.fromRGB(110, 90, 70))
+	line(`{def.icon or ""} {string.upper(def.title)}`, 0.06, 0.32, if locked then L.PanelDark else tone(color, 0.45))
+	local votesLabel = line(if locked then `\u{1F512} Needs {minimumFor(def)} players` else "0 votes", 0.44, 0.28, L.PanelDark)
+	line(if locked then "Invite a friend to play this one!" else "Stand here to vote!", 0.76, 0.17, L.Panel)
 
 	model.Parent = workspace
-	return { def = def, model = model, base = base, center = center, votesLabel = votesLabel }
+	return { def = def, locked = locked, model = model, glow = glow, center = center, votesLabel = votesLabel }
 end
 
--- Slides models up from under the floor (or back down) with a little bounce.
+-- Slides models up out of the stage (or back down into it) with a little bounce.
 local function slide(models: { Model }, up: boolean)
 	local starts = {}
 	for i, model in models do
@@ -150,7 +184,9 @@ end
 
 local function refreshLabels()
 	for i, n in counts() do
-		pads[i].votesLabel.Text = if n == 1 then "1 vote" else `{n} votes`
+		if not pads[i].locked then
+			pads[i].votesLabel.Text = if n == 1 then "1 vote" else `{n} votes`
+		end
 	end
 end
 
@@ -158,16 +194,22 @@ end
 local function track()
 	while counting do
 		local changed = false
+		local now = os.clock()
 		for _, player in Players:GetPlayers() do
 			local root = Util.rootPart(player)
 			if root and Util.aliveHumanoid(player) then
 				for i, pad in pads do
 					local offset = root.Position - pad.center
 					if math.abs(offset.X) <= PAD / 2 and math.abs(offset.Z) <= PAD / 2 and offset.Y > -1 and offset.Y < 7 then
-						if votes[player] ~= i then
+						if pad.locked then
+							if now - (warned[player] or 0) > 3 then
+								warned[player] = now
+								Remotes.fire(player, "Announce", { text = `{pad.def.title} needs {minimumFor(pad.def)} players. Pick another map!`, color = Colors.Paper })
+							end
+						elseif votes[player] ~= i then
 							votes[player] = i
 							changed = true
-							Util.playSound("TallyClick", pad.base)
+							Util.playSound("TallyClick", pad.glow)
 							Remotes.fireAll("Popup", { text = "+1", position = pad.center + Vector3.new(0, 4, 0), color = pad.def.color })
 						end
 						break
@@ -182,47 +224,49 @@ local function track()
 	end
 end
 
-function Vote.open(choices: { any })
+function Vote.open(choices: { Choice })
 	Vote.cancel()
-	table.clear(votes)
 	local O = Config.Pod.origin
 	local models = {}
-	for i, def in choices do
-		local x = (i - (#choices + 1) / 2) * SPACING
-		local pad = buildPad(def, O + Vector3.new(x, 0, PAD_Z))
-		pad.model:PivotTo(pad.model:GetPivot() - Vector3.new(0, RISE, 0)) -- start under the floor
+	for i, choice in choices do
+		local x = (i - (#choices + 1) / 2) * STAGE.spacing
+		local pad = buildPad(choice, O + Vector3.new(x, STAGE.height, STAGE.z))
+		pad.model:PivotTo(pad.model:GetPivot() - Vector3.new(0, RISE, 0)) -- start down inside the stage
 		table.insert(pads, pad)
 		table.insert(models, pad.model)
 	end
-	Util.soundAt("Rumble", O + Vector3.new(0, 1, PAD_Z))
-	Remotes.fireAll("Announce", { text = "Vote for the next map! Stand on one at the reception desk.", color = Colors.Gold })
+	Util.soundAt("Rumble", O + Vector3.new(0, 1, STAGE.z))
+	Remotes.fireAll("Announce", { text = "Vote for the next map! Stand on one at the MAP VOTE stage.", color = Colors.Gold })
 	slide(models, true)
 	counting = true
 	task.spawn(track)
 end
 
--- Ends the vote: returns the winning map (its Config.Levels entry), or nil if there were no pads.
+-- Ends the vote: returns the winning map (its Config.Levels entry), or nil if nothing was open.
 function Vote.close(): any?
 	counting = false
-	if #pads == 0 then
-		return nil
-	end
 	local list = counts()
 	local best = -1
 	local tied = {}
 	for i, n in list do
-		if n > best then
-			best = n
-			tied = { i }
-		elseif n == best then
-			table.insert(tied, i)
+		if not pads[i].locked then
+			if n > best then
+				best = n
+				tied = { i }
+			elseif n == best then
+				table.insert(tied, i)
+			end
 		end
+	end
+	if #tied == 0 then
+		Vote.cancel()
+		return nil
 	end
 	local winnerIndex = tied[math.random(1, #tied)]
 	local winner = pads[winnerIndex]
 	Remotes.fireAll("Announce", { text = `Next map: {winner.def.title}!`, color = winner.def.color })
 
-	-- The others sink; the winner flashes.
+	-- The others sink back into the stage; the winner flashes.
 	local losers = {}
 	for i, pad in pads do
 		if i ~= winnerIndex then
@@ -231,9 +275,9 @@ function Vote.close(): any?
 	end
 	task.spawn(slide, losers, false)
 	for _ = 1, 4 do
-		winner.base.Transparency = 0
+		winner.glow.Transparency = 0.1
 		task.wait(0.15)
-		winner.base.Transparency = 0.5
+		winner.glow.Transparency = 0.6
 		task.wait(0.15)
 	end
 	slide({ winner.model }, false)
@@ -253,6 +297,7 @@ end
 
 Players.PlayerRemoving:Connect(function(player)
 	votes[player] = nil
+	warned[player] = nil
 	if counting and #pads > 0 then
 		refreshLabels()
 	end

@@ -3,6 +3,16 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 (voting stage replaces the reception desk) — Matthew (with Claude)
+Same branch. **Touches Rosie's HotelLobby** (the reception desk is gone).
+- The reception desk is now a permanent **map-vote stage**: a low marble dais on a mahogany skirt with a brass edge
+  and three brass-rimmed slots (`buildVoteStage`); the "RECEPTION" sign reads "MAP VOTE". Layout in `Config.Vote.stage`.
+- **Always 3 maps:** a map that needs more players than are here shows locked (grey, "Needs 2 players", can't be
+  voted for); at least one map is always open.
+- **Lobby colors:** pads are dark marble with a soft glowing inlay in the map's color and a brass rim; signs are
+  mahogany with a cream face and brass trim (no more bright neon squares).
+- Checked in Studio: 3 pads rise out of the stage, locked one shows correctly, votes count. luau-lsp: only the 3 old errors.
+
 ## 2026-11-08 (map vote, 12 players) — Matthew (with Claude)
 Same branch. **Touches Rosie's HotelLobby** (the room entries are gone).
 - **Map vote replaces the room queues (new `Vote.luau`):** between rounds (after a 4 s break) pads for 3 random

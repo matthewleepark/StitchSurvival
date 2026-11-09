@@ -1,5 +1,5 @@
--- Round loop: players wait in the hub and vote for the next map by standing on its pad at the reception
--- desk (server/Vote.luau); everyone in the server plays the winner, then results, then back to the hub.
+-- Round loop: players wait in the hub and vote for the next map by standing on its pad at the voting
+-- stage (server/Vote.luau); everyone in the server plays the winner, then results, then back to the hub.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -120,7 +120,7 @@ local function waitSecond(): boolean
 	return false
 end
 
--- Between rounds: a short break, then the map vote at the reception desk. Returns the winning map's
+-- Between rounds: a short break, then the map vote at the voting stage. Returns the winning map's
 -- Config.Levels entry, or nil if an admin started a round instead.
 local function intermission(): any?
 	setPhase("Intermission")
