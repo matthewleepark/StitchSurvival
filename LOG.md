@@ -3,6 +3,19 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 (map vote, 12 players) — Matthew (with Claude)
+Same branch. **Touches Rosie's HotelLobby** (the room entries are gone).
+- **Map vote replaces the room queues (new `Vote.luau`):** between rounds (after a 4 s break) pads for 3 random
+  maps pop up out of the floor in front of the reception desk, each with a sign (icon, name, vote count). Stand
+  on one to vote; your vote sticks to the last pad you stood on. After 25 s the most-voted map wins (ties / no
+  votes: random) and everyone in the server plays it. Maps needing 2 players aren't offered to a lone player.
+  `Config.Vote`; each level has an `icon` and `color` now.
+- **Removed:** `Rooms.luau`, `client/BusCamera.luau`, `Config.Rooms`, `Config.IntermissionTime`, and the balcony
+  join pads + buses (`buildRoomEntry`). The numbered guest-room doors stay as decoration.
+- **Players:** `Config.MaxPlayers = 12`. Set Max Players to 12 in Studio (Home > Game Settings > Basic Info).
+- **Checked in Studio:** pads pop up, standing counts a vote within a second, the winner loads, solo only gets
+  the two solo maps. luau-lsp: only the 3 old errors.
+
 ## 2026-11-08 (stickers, saving, Hide & Seek, spectate) — Matthew (with Claude)
 Branch `matthew/stickers-and-modes` (from `matthew/shark-redesign`, which isn't merged yet).
 **Touches Rosie's files** (client HUD/Roles/Flashlight/CodesPanel/Audio, HotelLobby, Rooms, KillerHotel,

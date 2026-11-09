@@ -11,8 +11,8 @@ the Pod lobby). See `README.md` for controls and the file map.
 ## Where the newer systems live
 - Hub: `Levels/HotelLobby.luau` (layout) and `Levels/HotelProps.luau` (furniture). The hub keeps the name
   `Config.Pod` for its size. The old toybox is `Levels/Pod.luau`.
-- Game rooms: `Rooms.luau` queues players per guest-room door (`Config.Rooms`); the round loop in
-  `init.server.luau` plays the longest-waiting room's level. One round at a time.
+- Map vote: `Vote.luau` pops up map pads at the reception desk between rounds (`Config.Vote`); the round loop in
+  `init.server.luau` plays the winner with everyone in the server (max `Config.MaxPlayers` = 12). One round at a time.
 - Look: `Mood.luau` reads `Config.Mood`. Lights tagged `FlickerLight` stutter.
 - Movement: `Config.Gravity` and `Config.Doll.WalkSpeed` / `JumpHeight`. Don't hard-code speeds.
 - Client flashlight: `client/Flashlight.luau`, `Config.Flashlight`.

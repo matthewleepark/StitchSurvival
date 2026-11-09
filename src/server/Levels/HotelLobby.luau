@@ -1,6 +1,6 @@
 -- The hub: a grand hotel lobby where players arrive, walk around, and roll for passives between
--- levels. Same contract as Pod.build(): returns { model, machine, spawn }, plus `rooms`: the
--- numbered guest-room doors that act as game queues (see Rooms.luau).
+-- levels. Same contract as Pod.build(): returns { model, machine, spawn }. The next map is voted on at the
+-- reception desk (server/Vote.luau); the numbered guest-room doors upstairs are just decoration.
 --
 -- Layout (the lobby is Config.Pod; x is left-right, z runs from the back wall (-) to the entrance (+)):
 --   back wall   elevators | reception desk with keys and mailboxes | fireplace | gear machine
@@ -35,7 +35,7 @@ local INVISIBLE = { Transparency = 1, CanQuery = false }
 local function makeContext(model: Model, decor: Folder)
 	local def = Config.Pod
 	local O = def.origin
-	local ctx = { model = model, decor = decor, O = O, W = def.width, D = def.depth, H = def.height, MZ = def.mezzanineHeight, rooms = {} }
+	local ctx = { model = model, decor = decor, O = O, W = def.width, D = def.depth, H = def.height, MZ = def.mezzanineHeight }
 
 	function ctx.at(x: number, y: number, z: number): Vector3
 		return O + Vector3.new(x, y, z)
@@ -239,194 +239,6 @@ local function buildStairs(ctx, side: number)
 	Craft.block(decor, CFrame.lookAt((trimLow + trimHigh) / 2, trimHigh), Vector3.new(0.35, 0.15, (trimHigh - trimLow).Magnitude), L.Brass, M.Metal, DECOR)
 end
 
--- A game room: the door, a glowing pad on the floor in front of it with floating text, and the
--- bus behind the wall with rows of seats (Rooms.luau seats people there). The pad sits
--- against the wall, so the rest of the balcony is free to walk along without stepping on it.
-local LEVEL_GLOW = { BombHotel = Color3.fromRGB(255, 150, 60), SharkSurvival = Color3.fromRGB(90, 180, 255), KillerHotel = Color3.fromRGB(200, 40, 50), HideAndSeek = Color3.fromRGB(170, 110, 240) }
-local LEVEL_ICON = { BombHotel = "\u{1F4A3}", SharkSurvival = "\u{1F988}", KillerHotel = "\u{1F52A}", HideAndSeek = "\u{1F648}" } -- bomb, shark, knife, see-no-evil monkey
-local ROOM_DEPTH = 22 -- how long the bus is, going back from the wall
-local ROOM_WIDTH = 13 -- along the wall (a 1-stud gap between neighbouring rooms)
-local SEAT_ROWS = 8 -- 8 rows of 4 bus seats = 32, a full room
-
-local function buildRoomEntry(ctx, side: number, z: number, number: number, levelName: string)
-	local model, decor, at, MZ, W = ctx.model, ctx.decor, ctx.at, ctx.MZ, ctx.W
-	local title = levelName
-	for _, def in Config.Levels do
-		if def.name == levelName then
-			title = def.title
-		end
-	end
-	local glow = LEVEL_GLOW[levelName] or L.Brass
-	local wallX = side * W / 2
-
-	-- Glowing pad on the floor in front of the door.
-	local padCenter = at(wallX - side * 1.9, MZ + 0.06, z)
-	local pad = box(model, padCenter.X, padCenter.Y, padCenter.Z, 3.2, 0.12, 6, glow, M.Neon, { CanCollide = false, CanQuery = false, Name = `Room{number}Pad` })
-	pad.Transparency = 0.35
-	local padLight = Instance.new("PointLight")
-	padLight.Color = glow
-	padLight.Range = 10
-	padLight.Brightness = 0.8
-	padLight.Parent = pad
-	for _, dz in { -3.3, 3.3 } do -- brass posts marking the pad's corridor corners
-		local post = at(wallX - side * 3.6, MZ + 0.7, z + dz)
-		Craft.cylinder(decor, post, 1.4, 0.35, "Y", L.Brass, M.Metal, DECOR)
-		Craft.ball(decor, post + Vector3.new(0, 0.8, 0), 0.5, L.Brass, M.Metal, DECOR)
-	end
-
-	-- A solid sign board on the wall above the door: the game's name with a picture, how many
-	-- players are in, and what to do. It's part of the wall, so signs never pile up on each other.
-	local icon = LEVEL_ICON[levelName] or ""
-	local wall = if side == -1 then "left" else "right"
-	local along = if side == -1 then -z else z
-	local countLabel: TextLabel, hintLabel: TextLabel
-	ctx.wallItem(wall, along, MZ + 12, 0.3, function(item)
-		Craft.block(item, CFrame.identity, Vector3.new(9.4, 4.4, 0.4), L.PanelDark, M.Wood, DECOR)
-		local board = Craft.block(item, CFrame.new(0, 0, 0.25), Vector3.new(8.8, 3.8, 0.1), Color3.fromRGB(250, 240, 214), M.Plastic, DECOR)
-		Craft.block(item, CFrame.new(0, 2.15, 0.3), Vector3.new(9.4, 0.25, 0.2), glow, M.Neon, DECOR) -- glowing top edge
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = Enum.NormalId.Back -- Back is the +Z side, the face looking into the hallway
-		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 40
-		gui.LightInfluence = 0
-		gui.Parent = board
-		local function line(text: string, y: number, height: number, color: Color3): TextLabel
-			local label = Instance.new("TextLabel")
-			label.BackgroundTransparency = 1
-			label.Position = UDim2.fromScale(0.04, y)
-			label.Size = UDim2.fromScale(0.92, height)
-			label.Font = Enum.Font.FredokaOne
-			label.TextScaled = true
-			label.TextColor3 = color
-			label.Text = text
-			label.Parent = gui
-			return label
-		end
-		line(`{icon} {string.upper(title)}`, 0.04, 0.36, glow)
-		countLabel = line("0 / 32 players", 0.42, 0.3, Color3.fromRGB(60, 42, 30))
-		hintLabel = line("Step on the glowing square!", 0.74, 0.22, Color3.fromRGB(110, 90, 70))
-	end)
-
-	-- The bus behind the door: a dark hotel shuttle, parked with its back to the wall and its nose
-	-- pointing away. Rows of 2 + 2 seats face the windshield (Rooms.luau seats people here; the client
-	-- switches to first person while you're on board). The driver's seat is empty...
-	local BUS_GREEN = Color3.fromRGB(38, 66, 58)
-	local STRIPE = Color3.fromRGB(230, 214, 170)
-	local inner = side * (W / 2 + 4) -- just past the lobby's outer wall
-	local center = at(inner + side * ROOM_DEPTH / 2, MZ, z)
-	local function local_(dx: number, dy: number, dz: number): Vector3
-		return center + Vector3.new(side * dx, dy, dz)
-	end
-	local halfLength, halfWidth = ROOM_DEPTH / 2, ROOM_WIDTH / 2
-
-	-- Floor, roof, and the solid ends.
-	box(model, center.X, center.Y - 0.5, center.Z, ROOM_DEPTH, 1, ROOM_WIDTH, Color3.fromRGB(40, 40, 44), M.Plastic)
-	local aisle = local_(0, 0.06, 0)
-	box(decor, aisle.X, aisle.Y, aisle.Z, ROOM_DEPTH - 2, 0.1, 2, Color3.fromRGB(90, 30, 30), M.Carpet, DECOR)
-	box(model, center.X, center.Y + 8.5, center.Z, ROOM_DEPTH, 1, ROOM_WIDTH, BUS_GREEN, M.Metal)
-	local back = local_(-halfLength + 0.5, 4, 0)
-	box(model, back.X, back.Y, back.Z, 1, 8, ROOM_WIDTH, BUS_GREEN, M.Metal)
-
-	-- Side walls: solid lower panel, a band of windows looking out into the night, solid top.
-	for _, dz in { -1, 1 } do
-		local wallZ = dz * (halfWidth - 0.5)
-		local lower = local_(0, 1.75, wallZ)
-		box(model, lower.X, lower.Y, lower.Z, ROOM_DEPTH, 3.5, 1, BUS_GREEN, M.Metal)
-		local stripe = local_(0, 3.4, wallZ - dz * 0.52)
-		box(decor, stripe.X, stripe.Y, stripe.Z, ROOM_DEPTH, 0.3, 0.05, STRIPE, M.Plastic, DECOR)
-		local glass = local_(0, 5.25, wallZ)
-		local window = box(model, glass.X, glass.Y, glass.Z, ROOM_DEPTH, 3.5, 0.4, Color3.fromRGB(30, 40, 52), M.Glass)
-		window.Transparency = 0.45
-		for dx = -halfLength + 2.5, halfLength - 2.5, 3.2 do -- window frames
-			local post = local_(dx, 5.25, wallZ)
-			box(decor, post.X, post.Y, post.Z, 0.3, 3.5, 1.05, BUS_GREEN, M.Metal, DECOR)
-		end
-		local upper = local_(0, 7.5, wallZ)
-		box(model, upper.X, upper.Y, upper.Z, ROOM_DEPTH, 1, 1, BUS_GREEN, M.Metal)
-	end
-
-	-- Front: dashboard, a big windshield, the empty driver's seat and its steering wheel.
-	local frontX = halfLength - 0.5
-	local dash = local_(frontX - 0.7, 1.6, 0)
-	box(model, dash.X, dash.Y, dash.Z, 2.4, 3.2, ROOM_WIDTH, Color3.fromRGB(30, 30, 34), M.Plastic)
-	local windshield = local_(frontX, 5.4, 0)
-	local front = box(model, windshield.X, windshield.Y, windshield.Z, 0.4, 4.4, ROOM_WIDTH - 1, Color3.fromRGB(30, 40, 52), M.Glass)
-	front.Transparency = 0.45
-	local cap = local_(frontX, 7.8, 0)
-	box(model, cap.X, cap.Y, cap.Z, 1, 0.6, ROOM_WIDTH, BUS_GREEN, M.Metal)
-	local driverZ = -side * (halfWidth - 3) -- the driver sits on the left as you face forward
-	local driver = local_(frontX - 2.7, 1.2, driverZ)
-	box(decor, driver.X, driver.Y, driver.Z, 1.8, 0.6, 1.8, Color3.fromRGB(60, 60, 64), M.Felt)
-	local driverBack = local_(frontX - 3.6, 2.6, driverZ)
-	box(decor, driverBack.X, driverBack.Y, driverBack.Z, 0.3, 2.4, 1.8, Color3.fromRGB(60, 60, 64), M.Felt)
-	local wheel = local_(frontX - 1.9, 3.6, driverZ)
-	Craft.block(decor, CFrame.lookAt(wheel, wheel + Vector3.new(side, 0.6, 0)) * CFrame.Angles(0, math.rad(90), 0), Vector3.new(0.25, 1.6, 1.6), Color3.fromRGB(20, 20, 22), M.Plastic, DECOR).Shape = Enum.PartType.Cylinder
-
-	-- Grab bar along the ceiling, and a dim strip light.
-	local bar = local_(0, 7.6, 0)
-	Craft.cylinder(decor, bar, ROOM_DEPTH - 4, 0.25, "X", L.Brass, M.Metal, DECOR)
-	local strip = local_(0, 7.95, 0)
-	local lamp = box(decor, strip.X, strip.Y, strip.Z, ROOM_DEPTH - 4, 0.12, 0.6, Color3.fromRGB(255, 220, 170), M.Neon, DECOR)
-	local busLight = Instance.new("PointLight")
-	busLight.Color = Color3.fromRGB(255, 210, 160)
-	busLight.Range = 20
-	busLight.Brightness = 0.9
-	busLight.Parent = lamp
-
-	-- Destination sign over the windshield, facing the seats: where the bus goes and who's aboard.
-	local signAt = local_(frontX - 0.6, 6.6, 0)
-	local screen = Craft.block(decor, CFrame.lookAt(signAt, signAt - Vector3.new(side, 0, 0)), Vector3.new(8, 2.4, 0.2), Color3.fromRGB(20, 20, 26), M.Plastic, DECOR)
-	local screenGui = Instance.new("SurfaceGui")
-	screenGui.Face = Enum.NormalId.Front
-	screenGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	screenGui.PixelsPerStud = 50
-	screenGui.LightInfluence = 0
-	screenGui.Parent = screen
-	local screenLabel = Instance.new("TextLabel")
-	screenLabel.BackgroundTransparency = 1
-	screenLabel.Size = UDim2.fromScale(1, 1)
-	screenLabel.Font = Enum.Font.FredokaOne
-	screenLabel.TextScaled = true
-	screenLabel.TextColor3 = glow
-	screenLabel.Text = `{icon} {string.upper(title)}`
-	screenLabel.Parent = screenGui
-
-	-- Rows of 2 + 2 seats facing forward, with an aisle down the middle.
-	local seats = {}
-	for row = 1, SEAT_ROWS do
-		local dx = -halfLength + 2.5 + (row - 1) * 2
-		for _, dz in { -3.9, -1.95, 1.95, 3.9 } do
-			local spot = local_(dx, 1.3, dz)
-			local facing = CFrame.lookAt(spot, spot + Vector3.new(side, 0, 0))
-			local seat = Instance.new("Seat")
-			seat.Name = "WaitSeat"
-			seat.Size = Vector3.new(1.8, 0.5, 1.6)
-			seat.CFrame = facing
-			seat.Anchored = true
-			seat.Color = Color3.fromRGB(70, 46, 40)
-			seat.Material = M.Felt
-			seat.TopSurface = Enum.SurfaceType.Smooth
-			seat.Parent = model
-			Craft.block(decor, facing * CFrame.new(0, 1.2, 0.85), Vector3.new(1.8, 2.4, 0.15), Color3.fromRGB(70, 46, 40), M.Felt, DECOR)
-			Craft.block(decor, facing * CFrame.new(0, -0.7, 0), Vector3.new(1.4, 0.9, 1.2), Color3.fromRGB(30, 30, 34), M.Metal, DECOR)
-			table.insert(seats, seat)
-		end
-	end
-
-	table.insert(ctx.rooms, {
-		number = number,
-		level = levelName,
-		title = title,
-		pad = pad,
-		countLabel = countLabel,
-		hintLabel = hintLabel,
-		screenLabel = screenLabel,
-		seats = seats,
-		-- where you're put back when you stand up: on the balcony, clear of the pad, facing the lobby
-		exit = CFrame.lookAt(at(wallX - side * 8, MZ + 3, z), at(0, MZ + 3, z)),
-	})
-end
-
 local function buildMezzanine(ctx)
 	local model, decor, at, MZ, D = ctx.model, ctx.decor, ctx.at, ctx.MZ, ctx.D
 	local zFront = D / 2 -- the balconies run all the way to the front wall, where the stairs land
@@ -488,10 +300,6 @@ local function buildMezzanine(ctx)
 			local z = -34 + i * 14
 			local number = if side == -1 then 201 + i * 2 else 202 + i * 2
 			Props.roomDoor(decor, ctx.wall(wall, alongOf(z), MZ, 0), number)
-			local levelName = Config.Rooms.levels[number]
-			if levelName then
-				buildRoomEntry(ctx, side, z, number, levelName)
-			end
 			if i < 4 then -- a lamp between each pair of doors
 				Props.sconce(decor, ctx.wall(wall, alongOf(z + 7), MZ + 7, 0.3))
 			end
@@ -704,7 +512,6 @@ function HotelLobby.build()
 		model = model,
 		machine = machine,
 		spawn = spawn,
-		rooms = ctx.rooms, -- the game-room doors, for Rooms.start()
 	}
 end
 

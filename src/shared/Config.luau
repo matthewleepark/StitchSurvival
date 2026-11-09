@@ -7,8 +7,19 @@ local Config = {}
 -- Players who get the admin panel (testing tools). Roblox usernames, any capitalization.
 Config.Admins = { "3HBQ", "ACKworld", "suweetiepie" }
 
-Config.MinPlayers = 1 -- players a room needs queued before its start countdown begins
-Config.IntermissionTime = 60 -- countdown once a room is ready; lower this (e.g. 10) while testing
+-- Players per server. Set Max Players to the same number in Studio: Home > Game Settings > Basic Info.
+Config.MaxPlayers = 12
+Config.MinPlayers = 1 -- players needed in the server before the map vote starts
+
+-- Map vote (server/Vote.luau): between rounds, pads for a few maps pop up out of the floor in front of the
+-- reception desk. Stand on one to vote for it (your vote stays until you stand on another). When the timer
+-- runs out the map with the most votes is played by everyone in the server (a tie, or no votes, is picked at
+-- random). Maps that need more players than are here (Killer Hotel, Hide & Seek need 2) aren't offered.
+Config.Vote = {
+	choices = 3, -- how many maps pop up each time (picked at random from Config.Levels)
+	seconds = 25, -- how long the vote lasts; lower it (e.g. 8) while testing
+	breakSeconds = 4, -- a short breather in the lobby after a round before the pads pop up
+}
 Config.LoadingTime = 3 -- the "map tipping out of the toybox" moment before teleporting
 Config.CountdownTime = 3
 Config.RoundTime = 120
@@ -148,6 +159,8 @@ Config.Levels = {
 	{
 		name = "BombHotel",
 		title = "Bomb Hotel",
+		icon = "\u{1F4A3}", -- bomb (on its vote pad)
+		color = Color3.fromRGB(255, 150, 60),
 		weight = 50,
 		origin = Vector3.new(0, 20, 400),
 		width = 96,
@@ -159,6 +172,8 @@ Config.Levels = {
 	{
 		name = "SharkSurvival",
 		title = "Shark Survival",
+		icon = "\u{1F988}", -- shark
+		color = Color3.fromRGB(90, 180, 255),
 		weight = 50,
 		origin = Vector3.new(0, 20, 900),
 		width = 300,
@@ -167,10 +182,12 @@ Config.Levels = {
 		waterDepth = 20,
 	},
 	-- Killer Hotel: one killer hunts everyone else with bombs (see Config.KillerHotel below).
-	-- weight 0: a "Random" admin start never picks it; it is played from its own guest-room doors.
+	-- weight 0: a "Random" admin start never picks it (it can still win the map vote).
 	{
 		name = "KillerHotel",
 		title = "Killer Hotel",
+		icon = "\u{1F52A}", -- knife
+		color = Color3.fromRGB(200, 40, 50),
 		weight = 0,
 		minPlayers = 2, -- a killer needs someone to hunt (Config.KillerHotel.soloTest overrides it)
 		roundTime = 600, -- 10 minutes
@@ -182,10 +199,12 @@ Config.Levels = {
 		height = 3 * 28 + 20,
 	},
 	-- Hide & Seek: the same kind of maze hotel, no bombs. One SEEKER (red aura) hunts the HIDERS
-	-- (see Config.HideAndSeek below). Played from its own guest-room doors.
+	-- (see Config.HideAndSeek below).
 	{
 		name = "HideAndSeek",
 		title = "Hide & Seek",
+		icon = "\u{1F648}", -- see-no-evil monkey
+		color = Color3.fromRGB(170, 110, 240),
 		weight = 0,
 		minPlayers = 2, -- a seeker needs someone to find (Config.HideAndSeek.soloTest overrides it)
 		roundTime = 240, -- 4 minutes, counted from GO (the hiding time is part of it)
@@ -293,27 +312,6 @@ Config.KillerHotel = {
 		barricadeHeight = 8.5,
 		shelfChance = 0.5, -- chance a room's crate is a tall shelf instead
 		shelfHeight = 8.5,
-	},
-}
-
--- Game rooms: the numbered guest-room doors on the hotel balconies. Walk up and hold E to join a
--- room's queue (again to leave). Rounds run one at a time, so rooms take turns: the room that has
--- been waiting longest (with at least MinPlayers) plays its level next.
--- Max Players in Studio (Home > Game Settings > Basic Info) should match `capacity` below.
-Config.Rooms = {
-	capacity = 16, -- also set Max Players to 16 in Studio: Home > Game Settings > Basic Info
-	-- room number -> level name from Config.Levels. Odd numbers are the left balcony, even the right.
-	levels = {
-		[201] = "BombHotel",
-		[203] = "BombHotel",
-		[205] = "BombHotel",
-		[207] = "KillerHotel",
-		[209] = "KillerHotel",
-		[202] = "SharkSurvival",
-		[204] = "SharkSurvival",
-		[206] = "SharkSurvival",
-		[208] = "HideAndSeek",
-		[210] = "HideAndSeek",
 	},
 }
 

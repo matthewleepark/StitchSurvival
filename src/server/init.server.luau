@@ -1,5 +1,5 @@
--- Round loop: players wait in the hub and queue at a game-room door; the room that has waited
--- longest plays its level, then results, then everyone goes back to the hub.
+-- Round loop: players wait in the hub and vote for the next map by standing on its pad at the reception
+-- desk (server/Vote.luau); everyone in the server plays the winner, then results, then back to the hub.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -10,7 +10,6 @@ local Doll = require(script.Doll)
 local Gear = require(script.Gear)
 local Mood = require(script.Mood)
 local Remotes = require(script.Remotes)
-local Rooms = require(script.Rooms)
 local RoundControl = require(script.RoundControl)
 local Admin = require(script.Admin)
 local Codes = require(script.Codes)
@@ -20,6 +19,7 @@ local Leaderboards = require(script.Leaderboards)
 local Score = require(script.Score)
 local Spectate = require(script.Spectate)
 local Util = require(script.Util)
+local Vote = require(script.Vote)
 local Pod = require(script.Levels.HotelLobby) -- the hub; swap back to script.Levels.Pod for the old toybox
 
 local levelModules = {
@@ -88,7 +88,6 @@ for _, player in Players:GetPlayers() do
 end
 
 local pod = Pod.build()
-Rooms.start(pod.rooms or {}) -- the old toybox Pod has no rooms, so nothing could start with it
 Doll.start()
 Gear.start(pod.machine)
 Admin.start(pod)
@@ -110,28 +109,48 @@ local function setPhase(phase: string)
 	ReplicatedStorage:SetAttribute("Phase", phase)
 end
 
--- Waits until some room is ready, then counts down; the countdown starts over if every ready room
--- empties before it finishes.
-local function intermission()
-	setPhase("Intermission")
-	local t = Config.IntermissionTime
-	while t > 0 do
-		local room = Rooms.pick()
-		if room then
-			setStatus(`Room {room.number}: {room.title} in`, t)
-			t -= 1
-		else
-			setStatus("Join a room upstairs to play!")
-			t = Config.IntermissionTime
+-- Waits a second, but returns true right away if an admin pressed "Start now".
+local function waitSecond(): boolean
+	for _ = 1, 10 do
+		if RoundControl.skipIntermission then
+			return true
 		end
-		-- Wait a second, but stop right away if an admin pressed "Start now".
-		for _ = 1, 10 do
-			if RoundControl.skipIntermission then
-				return
-			end
-			task.wait(0.1)
+		task.wait(0.1)
+	end
+	return false
+end
+
+-- Between rounds: a short break, then the map vote at the reception desk. Returns the winning map's
+-- Config.Levels entry, or nil if an admin started a round instead.
+local function intermission(): any?
+	setPhase("Intermission")
+	for t = Config.Vote.breakSeconds, 1, -1 do
+		setStatus("Next map vote in", t)
+		if waitSecond() then
+			return nil
 		end
 	end
+	while #Players:GetPlayers() < Config.MinPlayers do
+		setStatus("Waiting for players...")
+		if waitSecond() then
+			return nil
+		end
+	end
+
+	local choices = Vote.choices(#Players:GetPlayers())
+	if #choices == 0 then
+		return nil
+	end
+	Vote.open(choices)
+	for t = Config.Vote.seconds, 1, -1 do
+		setStatus("Vote for the next map!", t)
+		if waitSecond() then
+			Vote.cancel()
+			return nil
+		end
+	end
+	setStatus("Counting the votes...")
+	return Vote.close()
 end
 
 local function setFrozen(players: { Player }, frozen: boolean)
@@ -158,26 +177,15 @@ local function freezeWorld(level, stage, survivors: { Player })
 	setFrozen(survivors, true)
 end
 
-local function playRound(room: Rooms.Room)
-	local def
-	for _, levelDef in Config.Levels do
-		if levelDef.name == room.level then
-			def = levelDef
-		end
-	end
-	if not def then
-		warn(`[Rooms] room {room.number} wants unknown level "{room.level}"`)
-		Rooms.take(room)
-		return
-	end
+local function playRound(def)
 	local level = levelModules[def.name]
 	-- A level may set its own round length (def.roundTime) and may define these optional hooks:
 	--   level.begin(stage, participants)    after everyone is sent in, before the countdown (hand out roles)
 	--   level.isOver(stage, alive)          true to end the round early (a team has won)
 	--   level.finish(stage, alive)          { winners = { [Player]: true }, text = string } when the round ends
 	local roundTime = def.roundTime or Config.RoundTime
-	-- An admin "Start now" pulls in everyone; a normal round takes the room's queue.
-	local queued = if (room :: any).adminStart then Players:GetPlayers() else Rooms.take(room) -- the room reopens for the next game while this one plays
+	-- Everyone in the server plays.
+	local queued = Players:GetPlayers()
 
 	-- Loading: the music dips while the new level tips out of the toybox.
 	setPhase("Loading")
@@ -199,7 +207,9 @@ local function playRound(room: Rooms.Room)
 			alive[player] = true
 			player:SetAttribute("InRound", true) -- spectators can watch you (client/Spectate.luau)
 			local spawnAt = stage.spawns[(#participants - 1) % #stage.spawns + 1]
-			Rooms.release(player) -- out of any waiting-room chair first
+			if humanoid.Sit then
+				humanoid.Sit = false -- off any lobby sofa first
+			end
 			player.Character:PivotTo(spawnAt)
 			Remotes.fireAll("Teleport", { position = spawnAt.Position, color = player:GetAttribute("Color") })
 			table.insert(connections, humanoid.Died:Connect(function()
@@ -359,8 +369,8 @@ local function playRound(room: Rooms.Room)
 	RoundControl.stage = nil
 end
 
--- An admin pressed "Start now": a pretend room for the chosen level (or a random one).
-local function adminRoom()
+-- An admin pressed "Start now": the chosen level (or a random one), no vote.
+local function adminPick()
 	RoundControl.skipIntermission = false
 	local def = Util.weightedPick(Config.Levels)
 	for _, candidate in Config.Levels do
@@ -369,13 +379,15 @@ local function adminRoom()
 		end
 	end
 	RoundControl.forceLevel = nil
-	return { number = 0, level = def.name, title = def.title, adminStart = true } :: any
+	return def
 end
 
 while true do
-	intermission()
-	local room = if RoundControl.skipIntermission then adminRoom() else Rooms.pick()
-	if room then
-		playRound(room)
+	local def = intermission()
+	if RoundControl.skipIntermission then
+		def = adminPick()
+	end
+	if def then
+		playRound(def)
 	end
 end
