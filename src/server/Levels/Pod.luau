@@ -19,7 +19,10 @@ local function buildGearMachine(parent: Instance, base: Vector3): Part
 	local body = Craft.block(machine, CFrame.new(base + Vector3.new(0, 3, 0)), Vector3.new(6, 6, 5), Colors.Felt, M.Felt)
 	Craft.stitches(machine, base + Vector3.new(0, 3, 2.5), 6, 6, Colors.Paper)
 	Craft.block(machine, CFrame.new(base + Vector3.new(0, 3.6, 2.6)), Vector3.new(2.4, 1.6, 0.3), Colors.Gold, M.Metal, Craft.DECOR)
-	Craft.label(machine, base + Vector3.new(0, 1.4, 2.6), 5, 1.4, `{Config.RollCost} STICKERS`, Colors.Paper)
+	-- The price sits on its own paper tag, well inside the stitched border (the stitches run 0.6 in from
+	-- every edge), so no stitch ever crosses the words.
+	Craft.block(machine, CFrame.new(base + Vector3.new(0, 1.65, 2.62)), Vector3.new(4, 1.3, 0.12), Colors.Paper, Enum.Material.SmoothPlastic, Craft.DECOR)
+	Craft.label(machine, base + Vector3.new(0, 1.65, 2.72), 3.6, 0.95, `{Config.RollCost} STICKERS`, Colors.Felt)
 
 	-- Glass globe full of colorful gear capsules.
 	local globeCenter = base + Vector3.new(0, 9.5, 0)

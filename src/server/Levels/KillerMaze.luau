@@ -64,7 +64,9 @@ function KillerMaze.build(def)
 	local layout = MazeLayout.generate(N, floors, map.rampsPerFloor, map.loopChance, Random.new(seed))
 	local rng = Random.new(seed + 1)
 	local killerCell = (N // 2) + (N // 2) * N
-	MazeLayout.placeRooms(layout, rng, Config.KillerHotel.rooms.perFloor, Config.KillerHotel.rooms.passThroughChance, { [0] = { [killerCell] = true } })
+	-- A level can bring its own room settings (Hide & Seek wants more rooms, each with a wardrobe).
+	local roomSettings = def.rooms or Config.KillerHotel.rooms
+	MazeLayout.placeRooms(layout, rng, roomSettings.perFloor, roomSettings.passThroughChance, { [0] = { [killerCell] = true } })
 
 	local parkour = Config.KillerHotel.parkour
 	local barricades = MazeLayout.placeBarricades(layout, rng, parkour.barricadesPerFloor, { [0] = { [killerCell] = true } })
@@ -81,7 +83,7 @@ function KillerMaze.build(def)
 	KillerRooms.setup(stage)
 
 	local model = Instance.new("Model")
-	model.Name = "KillerHotel"
+	model.Name = def.name -- "KillerHotel", or "HideAndSeek" (which reuses this maze)
 	local decor = Instance.new("Folder")
 	decor.Name = "Decor"
 	decor.Parent = model
@@ -209,7 +211,7 @@ function KillerMaze.build(def)
 		local middle = at(cellX(i), f * H, cellX(j))
 		local style = STYLES[f % #STYLES + 1]
 		local nextSide = 1
-		if rng:NextNumber() < Config.KillerHotel.rooms.wardrobeChance and sides[nextSide] then
+		if rng:NextNumber() < roomSettings.wardrobeChance and sides[nextSide] then
 			local d = sides[nextSide]
 			nextSide += 1
 			local direction = Vector3.new(d[1], 0, d[2])
@@ -345,7 +347,7 @@ function KillerMaze.build(def)
 		table.insert(spawns, CFrame.new(cellPosition(spot.floor, spot.cell)))
 	end
 
-	print(`[KillerHotel] maze seed {seed}: {#layout.rooms} rooms, {#barricades} barricades, {#stage.doors} doors, {#breakables:GetChildren()} breakable parts, {#model:GetDescendants()} instances`)
+	print(`[{def.name}] maze seed {seed}: {#layout.rooms} rooms, {#barricades} barricades, {#stage.doors} doors, {#breakables:GetChildren()} breakable parts, {#model:GetDescendants()} instances`)
 
 	stage.model = model
 	stage.breakables = breakables

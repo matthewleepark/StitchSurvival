@@ -128,8 +128,11 @@ local function build()
 
 	local gui = new("ScreenGui", { Name = "AdminPanel", ResetOnSpawn = false, DisplayOrder = 20 }, player:WaitForChild("PlayerGui"))
 
+	-- On phones the spot under the health ribbon belongs to the passive tag and the menu, so the admin
+	-- button sits to the right of the score card instead.
+	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 	local toggle = new("TextButton", {
-		Position = UDim2.fromOffset(16, 140),
+		Position = if touch then UDim2.fromOffset(226, 16) else UDim2.fromOffset(16, 140),
 		Size = UDim2.fromOffset(90, 30),
 		BackgroundColor3 = Colors.Ink,
 		Font = FONT,
@@ -141,13 +144,15 @@ local function build()
 	TitleScreen.wireButton(toggle)
 
 	local panel = new("Frame", {
-		Position = UDim2.fromOffset(16, 178),
-		Size = UDim2.fromOffset(250, 420),
+		Position = if touch then UDim2.fromOffset(226, 52) else UDim2.fromOffset(16, 178),
+		-- Stops above the menu buttons in the bottom-left corner (it scrolls, so it can be short).
+		Size = if touch then UDim2.fromOffset(250, 280) else UDim2.new(0, 250, 1, -(178 + 190)),
 		BackgroundColor3 = Colors.Paper,
 		Visible = false,
 	}, gui)
 	new("UICorner", { CornerRadius = UDim.new(0, 12) }, panel)
 	new("UIStroke", { Thickness = 3, Color = Colors.Ink }, panel)
+	new("UISizeConstraint", { MinSize = Vector2.new(250, 150), MaxSize = Vector2.new(250, 420) }, panel)
 
 	local list = new("ScrollingFrame", {
 		Position = UDim2.fromOffset(8, 8),
@@ -264,6 +269,59 @@ local function build()
 	end)
 	button("+100 Stickers", function()
 		send("Stickers")
+	end)
+	button("Send in a shark (Bomb Hotel)", function()
+		send("SpawnShark")
+	end)
+
+	-- Moderation: type a name (and a reason), then press a button. Bans last on every server.
+	heading("PLAYERS")
+	local function box(placeholder: string): TextBox
+		order += 1
+		local input = new("TextBox", {
+			LayoutOrder = order,
+			Size = UDim2.new(1, -8, 0, 30),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			Font = FONT,
+			TextSize = 15,
+			TextColor3 = Colors.Ink,
+			PlaceholderText = placeholder,
+			Text = "",
+			ClearTextOnFocus = false,
+		}, list)
+		new("UICorner", { CornerRadius = UDim.new(0, 6) }, input)
+		new("UIStroke", { Thickness = 1.5, Color = Colors.Ink, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, input)
+		return input
+	end
+	local whoBox = box("Player name")
+	local reasonBox = box("Reason (optional)")
+	local function moderate(command: string)
+		send(command, { target = whoBox.Text, reason = reasonBox.Text })
+	end
+	local kick = button("Kick", function()
+		moderate("Kick")
+	end)
+	kick.BackgroundColor3 = Color3.fromRGB(230, 170, 90)
+	-- Ban asks twice, so a stray tap can't ban anyone.
+	local armed = false
+	local ban
+	ban = button("Ban (every server)", function()
+		if not armed then
+			armed = true
+			ban.Text = "Tap again to BAN"
+			task.delay(3, function()
+				armed = false
+				ban.Text = "Ban (every server)"
+			end)
+			return
+		end
+		armed = false
+		ban.Text = "Ban (every server)"
+		moderate("Ban")
+	end)
+	ban.BackgroundColor3 = Color3.fromRGB(220, 90, 80)
+	button("Unban (exact username)", function()
+		moderate("Unban")
 	end)
 
 	-- Passives: type a player's name to give to them, or leave it blank for yourself.

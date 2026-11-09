@@ -5,7 +5,7 @@
 --   * ROLL (costs Stickers) -> a random item from Config.Gear. It's added to your collection
 --     ("OwnedGear" attribute), and equipped automatically if it's rarer than what you have on.
 --   * EQUIP any item you own from the panel. Its passives (speed, jump...) apply right away.
--- Nothing is saved between sessions yet.
+-- Your collection and what you have on are saved between visits (server/Data.luau).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(script.Parent.Remotes)
 local Util = require(script.Parent.Util)
+local Daily = require(script.Parent.Daily)
 
 local Gear = {}
 
@@ -88,6 +89,7 @@ local function roll(player: Player)
 
 	local gear = Util.weightedPick(Config.Gear)
 	local isNew = Gear.give(player, gear.name)
+	Daily.track(player, "rolls", 1)
 	Remotes.fire(player, "GearResult", { name = gear.name, isNew = isNew })
 	if Config.RarityOrder[gear.rarity] >= Config.RarityOrder.Epic then
 		Remotes.fireAll("Announce", {

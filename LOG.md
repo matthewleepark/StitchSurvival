@@ -3,6 +3,86 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 (stickers, saving, Hide & Seek, spectate) — Matthew (with Claude)
+Branch `matthew/stickers-and-modes` (from `matthew/shark-redesign`, which isn't merged yet).
+**Touches Rosie's files** (client HUD/Roles/Flashlight/CodesPanel/Audio, HotelLobby, Rooms, KillerHotel,
+KillerMaze, KillerRooms, Parkour): small hooks only, listed below. Rosie should review those.
+- **Sticker sign:** the "20 STICKERS" price on the passive machine is on its own paper tag inside the stitched
+  border, so no stitch crosses the words (`Pod.buildGearMachine`).
+- **Saving (new `Data.luau`):** Stickers, Wins, passives, look, used codes, daily challenges and lifetime stats
+  are saved in a DataStore (`Config.Save`). Offline in Studio without API access (it warns once). If a real load
+  fails, that player isn't saved that visit, so a hiccup can't wipe them.
+- **Promo codes:** `WELCOME` now gives 100 Stickers. Every code is once per account, ever (was once per visit).
+- **Daily challenges (new `Daily.luau`, `client/DailyPanel.luau`):** 3 per player per day from `Config.Daily`,
+  progress bars and CLAIM buttons, red dot when something is ready. The server checks every claim.
+- **Leaderboards (new `Leaderboards.luau`):** two lit boards on the lobby back wall (above the elevators and
+  beside the fireplace), each flipping between two top-10s: wins / top hunters, stickers earned / rounds played.
+- **Hide & Seek (new `Levels/HideAndSeek.luau`, rooms 208 and 210):** reuses the Killer Hotel maze with more rooms
+  and a wardrobe in every one (`def.rooms` override in KillerMaze). The seeker counts 20 s with the screen
+  covered, then hunts with a red aura (Highlight + light + embers); getting close catches a hider. 30 pieces of
+  glowing junk lie around; each hider can pick up one (F) and throw it once (click / tap / Q); a hit stuns the
+  seeker for 4 s (then 4 s immune). Uses `stage.killer` so doors, wardrobe searches and parkour just work.
+- **Spectator mode (new `client/Spectate.luau`, `Spectate.luau`):** SPECTATE button when a round is on and you
+  aren't in it; arrows switch players, EXIT goes back. Server streams around the watched player.
+  `CameraGuard` now guards whoever the camera follows.
+- **Look:** DOLL / ME button switches between the knitted doll and your own avatar (saved; respawns you in the
+  lobby, waits until after the round otherwise).
+- **Admin:** Kick, Ban (every server, saved, double-tap to confirm), Unban, "Send in a shark" (Bomb Hotel).
+  Admins can't be kicked or banned. Banned players are kicked on join.
+- **Polish:** flashlight moved from F / L1 to **L / D-pad up** (F and L1 are the Killer Hotel door keys). New
+  `client/Menu.luau` stacks CODES / DAILY / DOLL; on phones it moves off the thumbstick and hides in rounds,
+  the passive card shrinks to a tag, and the admin button moves beside the score. Admin panel no longer runs
+  into the menu. Role tag moved off the health ribbon.
+- Hooks in shared files: `InRound` player attribute (round loop), `stage.ctx`, `stage.onHide` (KillerRooms),
+  Parkour runs in HideAndSeek too, Rooms `soloTest` for HideAndSeek, lobby glow/icon, Audio reverb.
+- **Checked in Studio:** WELCOME +100 then refused; rolls count, CLAIM pays once, unfinished claim refused;
+  boards built and fit the wall; sign fixed; look switch respawns; Hide & Seek (solo test): 30 junk pieces,
+  aura, seeker frozen while counting, pick up, throw, stun (frozen 4 s, stars, "stun" challenge 1/1); admin
+  self-ban refused. luau-lsp clean apart from the 3 old errors (MazeLayout, KillerMaze, Parkour).
+- **Not checked:** spectating and catching (need 2 players: use Studio's Test > Clients and Servers), saving to a
+  real DataStore (turn on API access), phone layout on a real phone. Screenshots of the maze came out black.
+- **Studio note:** the Rojo plugin made two copies of each new script. Disconnect and reconnect Rojo to clean up.
+
+## 2026-11-08 (admin: suweetiepie) — Matthew (with Claude)
+Same branch.
+- **Admin:** added `suweetiepie` to `Config.Admins` (now 3HBQ, ACKworld, suweetiepie). The server still checks the
+  list on every admin command.
+
+## 2026-11-08 (killer throws bombs) — Matthew (with Claude)
+Same branch. **Touches Rosie's Killer Hotel files** (`Levels/KillerHotel.luau`, `client/Roles.luau`,
+`Config.KillerHotel`), so Rosie should review.
+- **Held bomb:** while the killer has bombs, a black bomb with a sparking fuse is welded on top of their head
+  (`updateHeldBomb`). It vanishes when they're out, comes back on restock, and is removed when the round ends.
+- **Throw anywhere:** click anywhere (PC) or tap anywhere (mobile, `TouchTapInWorld`) to throw a bomb at that spot.
+  Q / gamepad X / the BOMB button still work and throw at the mouse (or the middle of the screen). `DropBomb` now
+  carries a `Vector3` target; the server still checks role, stock, cooldown and phase, then launches the bomb from
+  above the head at `throwSpeed` 80 plus `throwLift` 12 upward. `dropAhead` is gone.
+- **Shorter fuse:** `Config.KillerHotel.fuse` 8 -> 4 seconds.
+- **Checked:** luau-lsp clean for the changed files (the 3 existing errors in MazeLayout/KillerMaze/Parkour
+  were already there before this change). **Not checked in Studio:** Studio isn't connected to the MCP server.
+
+## 2026-11-08 (roof bombs) — Matthew (with Claude)
+Same branch.
+- **Bombs fall through the roof:** the Bomb Hotel roof is now breakable `RoofTile`s (8x8). Bombs spawn 25 studs above
+  a random spot over the whole roof; when one reaches the roof, `Bombs.punchThrough` (hooked in via
+  `Bombs.plant`'s `onBomb` option, so Killer Hotel is untouched) shatters the tiles under it and it drops into the
+  building. `Config.PlantedBombInterval` 15 -> 5 seconds (still halves by the end of the round).
+- **Checked:** luau-lsp clean. **Not checked in Studio:** the Studio MCP connection is down.
+
+## 2026-11-08 — Matthew (with Claude)
+Branch `matthew/shark-redesign` (from main after PR #3).
+- **New shark body** (`Levels/SharkModel.luau`), shared by the Shark Survival shark (`ClockworkShark.luau`) and the
+  Bomb Hotel chaos shark (`FlyingShark.luau`), replacing the felt/gears look. Low-poly great white built from real
+  triangles (two-wedge trick): slate-navy back over an off-white belly, hinged lower jaw with two rows of teeth top and
+  bottom, red gums, black throat with a cyan glow, glossy black eyes with a cyan glint, five cyan gill slits, scars, a
+  torn dorsal fin, long swept pectorals and a crescent tail. Based on the 4 reference images (low-poly shape, great
+  white face and mouth, abyssal glow).
+- **Cheaper to move:** every triangle is welded to one Root; two Motor6Ds open the jaw and swing the tail, so a frame
+  updates 3 things instead of every part. Built once per size, cached in ServerStorage and cloned.
+- **Checked:** luau-lsp clean for the new and changed files. **Not checked in Studio yet:** the Studio MCP
+  connection dropped before the preview; the look still needs an in-game check (seams at the tail joint, tooth
+  placement, colors in the dark).
+
 ## 2026-11-04 (admin passives) — Matthew (with Claude)
 Same branch.
 - **Admin panel PASSIVES section:** a "Give to" box (blank or "me" = yourself, or the start of a player's name), a

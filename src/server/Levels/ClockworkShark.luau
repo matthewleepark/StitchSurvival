@@ -1,9 +1,5 @@
--- The clockwork shark.
---
--- Body: about 15 studs long, built from three plywood segments covered in coarse gray felt and
--- joined by brass hinges. Glowing gold clockwork gears spin in the gaps between segments, and a
--- wind-up key turns on its back. The segments swing side to side as it swims (faster when it's
--- hunting). Its plywood jaws are lined with white felt teeth and button eyes sit on each side.
+-- The Shark Survival shark. Its body (a low-poly great white with a hinged, gaping jaw and a swinging
+-- tail) is built by SharkModel.luau, which the Bomb Hotel chaos shark shares.
 --
 -- Behavior:
 --   Patrol: it cruises a loop of points around the ocean, a few studs under the paper surface.
@@ -23,12 +19,8 @@ local Craft = require(script.Parent.Parent.Craft)
 local Remotes = require(script.Parent.Parent.Remotes)
 local Score = require(script.Parent.Parent.Score)
 local Util = require(script.Parent.Parent.Util)
+local SharkModel = require(script.Parent.SharkModel)
 
-local Colors = Config.Colors
-local M = Craft.Material
-
-local FELT_GRAY = Color3.fromRGB(128, 128, 136)
-local PLYWOOD = Color3.fromRGB(200, 166, 116)
 local BITE_RANGE = 4.5
 local LEAP_TIME = 1.4
 local LEAP_HIT_RANGE = 5.5
@@ -36,25 +28,10 @@ local LEAP_COOLDOWN = 3
 local TARGET_CHECK_INTERVAL = 0.2
 local PATROL_DEPTH = 5 -- studs under the surface while cruising
 
--- Segment lengths, front to back, and the gaps between them where the gears show.
-local HEAD_LENGTH = 5
-local MID_LENGTH = 4
-local REAR_LENGTH = 3.4
-local GAP = 0.6
+local MOUTH_REACH = 2.5 -- how far in front of the body's center its bite reaches
 
 local ClockworkShark = {}
 ClockworkShark.__index = ClockworkShark
-
-local NO_COLLIDE = { CanCollide = false, CanQuery = false, CanTouch = false }
-
--- Builds one part at the origin; pose() moves it into place every frame.
-local function piece(model: Instance, size: Vector3, color: Color3, material: Enum.Material, shape: Enum.PartType?): Part
-	local part = Craft.block(model, CFrame.identity, size, color, material, NO_COLLIDE)
-	if shape then
-		part.Shape = shape
-	end
-	return part
-end
 
 function ClockworkShark.new(stage)
 	local self = setmetatable({}, ClockworkShark)
@@ -62,7 +39,6 @@ function ClockworkShark.new(stage)
 	self.yaw = 0
 	self.pitch = 0
 	self.swim = 0 -- drives the side-to-side wiggle
-	self.gearAngle = 0
 	self.jawOpen = 0
 	self.jawTarget = 0
 	self.state = "patrol"
@@ -80,54 +56,15 @@ function ClockworkShark.new(stage)
 	self.nodeIndex = 1
 	self.position = self.nodes[1] + Vector3.new(0, stage.waterTop - stage.origin.Y - PATROL_DEPTH, 0)
 
-	local model = Instance.new("Model")
-	model.Name = "ClockworkShark"
-	self.model = model
-
-	-- Head: plywood box covered in felt, with a rounded snout, button eyes, and teeth.
-	self.head = piece(model, Vector3.new(HEAD_LENGTH, 3.4, 3.6), FELT_GRAY, M.Felt)
-	self.snout = piece(model, Vector3.new(3.4, 3.4, 3.4), FELT_GRAY, M.Felt, Enum.PartType.Ball)
-	self.upperJaw = piece(model, Vector3.new(3, 0.6, 3.4), PLYWOOD, M.Wood)
-	self.lowerJaw = piece(model, Vector3.new(3.6, 0.8, 3.2), PLYWOOD, M.Wood)
-	self.eyes = {}
-	for _, side in { -1, 1 } do
-		table.insert(self.eyes, { white = piece(model, Vector3.new(0.3, 1.4, 1.4), Color3.new(1, 1, 1), M.Felt, Enum.PartType.Cylinder), button = piece(model, Vector3.new(0.3, 0.7, 0.7), Color3.fromRGB(30, 30, 30), M.Plastic, Enum.PartType.Cylinder), side = side })
-	end
-	self.teeth = {}
-	for i = 0, 3 do
-		for _, side in { -1, 1 } do
-			table.insert(self.teeth, { upper = piece(model, Vector3.new(0.4, 0.6, 0.3), Color3.new(1, 1, 1), M.Felt), lower = piece(model, Vector3.new(0.4, 0.5, 0.3), Color3.new(1, 1, 1), M.Felt), x = 0.4 + i * 0.7, side = side })
-		end
-	end
-
-	-- Middle and rear segments, a tail fin, a dorsal fin, and side fins.
-	self.mid = piece(model, Vector3.new(MID_LENGTH, 3.2, 3.4), FELT_GRAY, M.Felt)
-	self.rear = piece(model, Vector3.new(REAR_LENGTH, 2.6, 2.8), FELT_GRAY, M.Felt)
-	self.tail = piece(model, Vector3.new(2.6, 2.6, 0.3), FELT_GRAY, M.Felt)
-	self.dorsal = piece(model, Vector3.new(2.4, 2.4, 0.3), FELT_GRAY, M.Felt)
-	self.fins = { piece(model, Vector3.new(1.8, 0.3, 1.8), FELT_GRAY, M.Felt), piece(model, Vector3.new(1.8, 0.3, 1.8), FELT_GRAY, M.Felt) }
-
-	-- Brass hinges and glowing gears in the two gaps.
-	self.hinges = { piece(model, Vector3.new(0.5, 2.4, 0.5), Colors.Gold, M.Metal), piece(model, Vector3.new(0.5, 2, 0.5), Colors.Gold, M.Metal) }
-	self.gears = {}
-	for _ = 1, 2 do
-		local gear = piece(model, Vector3.new(0.4, 2.6, 2.6), Colors.Gold, M.Neon, Enum.PartType.Cylinder)
-		local light = Instance.new("PointLight")
-		light.Color = Colors.Gold
-		light.Range = 8
-		light.Brightness = 1.2
-		light.Parent = gear
-		table.insert(self.gears, gear)
-	end
-	self.key = piece(model, Vector3.new(0.3, 1.6, 2.6), Colors.Gold, M.Metal)
-	self.keyShaft = piece(model, Vector3.new(0.4, 1.4, 0.4), Colors.Gold, M.Metal)
-
-	model.Parent = stage.model
-	Craft.tag(self.mid, "Occluded")
-	Craft.tag(model, "Hazard") -- the Spooky Sense passive shows it through walls
+	-- The body: one low-poly great white, about 15 studs long.
+	self.body = SharkModel.new(1, "Shark", stage.model)
+	self.model = self.body.model
+	self.head = self.body.root -- sounds come from the shark itself
+	Craft.tag(self.body.root, "Occluded")
+	Craft.tag(self.model, "Hazard") -- the Spooky Sense passive shows it through walls
 
 	-- Clockwork motor: low and muffled while patrolling underwater, high and fast when hunting.
-	self.motor = Util.loopSound("SharkMotor", self.mid)
+	self.motor = Util.loopSound("SharkMotor", self.body.root)
 	if self.motor then
 		local muffle = Instance.new("EqualizerSoundEffect")
 		muffle.LowGain = 6
@@ -141,50 +78,14 @@ function ClockworkShark.new(stage)
 	return self
 end
 
--- Moves every part into place for this frame: the head leads, and each segment behind it
--- swings a little further on its hinge, like a swimming fish.
+-- Moves the shark into place for this frame: the body sways a little, the tail swings further
+-- behind it (faster and wider when it's hunting), and the jaw opens and shuts.
 function ClockworkShark:pose()
-	local wiggleSize = if self.mood == "patrol" then 0.18 else 0.32
-	local w1 = math.sin(self.swim) * wiggleSize
-	local w2 = math.sin(self.swim - 0.9) * wiggleSize * 1.4
-
-	local root = CFrame.new(self.position) * CFrame.Angles(0, self.yaw, 0) * CFrame.Angles(0, 0, self.pitch)
-
-	-- Head (the shark faces +X in its own space).
-	self.head.CFrame = root
-	self.snout.CFrame = root * CFrame.new(HEAD_LENGTH / 2, 0, 0)
-	self.upperJaw.CFrame = root * CFrame.new(HEAD_LENGTH / 2 + 0.3, -1, 0)
-	local jawHinge = root * CFrame.new(0.6, -1.4, 0)
-	self.lowerJaw.CFrame = jawHinge * CFrame.Angles(0, 0, -self.jawOpen) * CFrame.new(1.8, -0.3, 0)
-	for _, tooth in self.teeth do
-		tooth.upper.CFrame = root * CFrame.new(HEAD_LENGTH / 2 - 0.4 + tooth.x - 1.2, -1.5, tooth.side * 1.4)
-		tooth.lower.CFrame = self.lowerJaw.CFrame * CFrame.new(tooth.x - 1, 0.6, tooth.side * 1.3)
-	end
-	for _, eye in self.eyes do
-		local spot = root * CFrame.new(1.2, 0.6, eye.side * 1.85) * CFrame.Angles(0, math.rad(90), 0)
-		eye.white.CFrame = spot
-		eye.button.CFrame = spot * CFrame.new(-eye.side * 0.12, 0, 0)
-	end
-	self.fins[1].CFrame = root * CFrame.new(-0.5, -1.4, 2.4) * CFrame.Angles(math.rad(-25), math.rad(45), 0)
-	self.fins[2].CFrame = root * CFrame.new(-0.5, -1.4, -2.4) * CFrame.Angles(math.rad(25), math.rad(45), 0)
-
-	-- First hinge and gear, then the middle segment.
-	local hinge1 = root * CFrame.new(-HEAD_LENGTH / 2 - GAP / 2, 0, 0)
-	self.hinges[1].CFrame = hinge1
-	self.gears[1].CFrame = hinge1 * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(self.gearAngle, 0, 0)
-	local midFrame = hinge1 * CFrame.Angles(0, w1, 0) * CFrame.new(-GAP / 2 - MID_LENGTH / 2, 0, 0)
-	self.mid.CFrame = midFrame
-	self.dorsal.CFrame = midFrame * CFrame.new(0, 1.8, 0) * CFrame.Angles(0, 0, math.rad(45))
-	self.keyShaft.CFrame = midFrame * CFrame.new(-0.8, 2, 0)
-	self.key.CFrame = midFrame * CFrame.new(-0.8, 2.9, 0) * CFrame.Angles(0, self.gearAngle * 0.5, 0)
-
-	-- Second hinge and gear, then the rear segment and tail.
-	local hinge2 = midFrame * CFrame.new(-MID_LENGTH / 2 - GAP / 2, 0, 0)
-	self.hinges[2].CFrame = hinge2
-	self.gears[2].CFrame = hinge2 * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(-self.gearAngle, 0, 0)
-	local rearFrame = hinge2 * CFrame.Angles(0, w2, 0) * CFrame.new(-GAP / 2 - REAR_LENGTH / 2, 0, 0)
-	self.rear.CFrame = rearFrame
-	self.tail.CFrame = rearFrame * CFrame.new(-REAR_LENGTH / 2 - 1, 0, 0) * CFrame.Angles(0, w2, math.rad(45))
+	local wiggleSize = if self.mood == "patrol" then 0.12 else 0.22
+	local sway = math.sin(self.swim) * wiggleSize
+	local tail = math.sin(self.swim - 0.9) * wiggleSize * 2.2
+	local root = CFrame.new(self.position) * CFrame.Angles(0, self.yaw + sway, 0) * CFrame.Angles(0, 0, self.pitch)
+	self.body:pose(root, self.jawOpen, tail)
 end
 
 function ClockworkShark:setMotor(mood: string, dt: number)
@@ -289,7 +190,6 @@ end
 function ClockworkShark:update(dt: number, progress: number)
 	local stage = self.stage
 	local speedUp = 1 + progress * 0.6
-	self.gearAngle += dt * (if self.mood == "patrol" then 3 else 9)
 	self.swim += dt * (if self.mood == "patrol" then 3 else 8)
 	self.jawOpen += (self.jawTarget - self.jawOpen) * math.min(1, dt * 14)
 	self.leapCooldown -= dt
@@ -324,7 +224,7 @@ function ClockworkShark:update(dt: number, progress: number)
 				self:moveToward(self:clampToWater(root.Position, 1.5), 16 * speedUp, dt)
 				local distance = (root.Position - self.position).Magnitude
 				self.jawTarget = if distance < 10 then 0.6 else 0
-				if distance < BITE_RANGE + HEAD_LENGTH / 2 then
+				if distance < BITE_RANGE + MOUTH_REACH then
 					self:pop(player)
 				end
 			end

@@ -1,4 +1,4 @@
--- The CODES button (bottom left) and the box where you type a promo code. The server checks the
+-- The CODES button (in the menu stack, client/Menu.luau) and the box where you type a promo code. The server checks the
 -- code and sends back a message, shown in green if it worked and red if not.
 
 local Players = game:GetService("Players")
@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Audio = require(script.Parent.Audio)
+local Menu = require(script.Parent.Menu)
 local TitleScreen = require(script.Parent.TitleScreen)
 
 local Colors = Config.Colors
@@ -30,20 +31,6 @@ end
 
 function CodesPanel.start()
 	local gui = new("ScreenGui", { Name = "Codes", ResetOnSpawn = false, DisplayOrder = 25 }, player:WaitForChild("PlayerGui"))
-
-	local open = new("TextButton", {
-		AnchorPoint = Vector2.new(0, 1),
-		Position = UDim2.new(0, 16, 1, -16),
-		Size = UDim2.fromOffset(130, 44),
-		BackgroundColor3 = Color3.fromRGB(80, 140, 200),
-		Font = FONT,
-		TextSize = 22,
-		TextColor3 = Color3.new(1, 1, 1),
-		Text = "\u{1F39F}\u{FE0F} CODES",
-		AutoButtonColor = false,
-	}, gui)
-	style(open, 12, 3)
-	TitleScreen.wireButton(open)
 
 	local card = new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
@@ -114,7 +101,7 @@ function CodesPanel.start()
 		Text = "",
 	}, card)
 
-	open.Activated:Connect(function()
+	Menu.add(1, "\u{1F39F}\u{FE0F} CODES", Color3.fromRGB(80, 140, 200), function()
 		card.Visible = not card.Visible
 		message.Text = ""
 	end)

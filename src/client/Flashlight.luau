@@ -1,6 +1,6 @@
 -- A flashlight for the dark. It points wherever the camera points, so you can sweep corridors while
 -- you walk. It is purely visual (a light only you see), so there is nothing for the server to check.
--- Toggle with F, L1 on a gamepad, or the "Light" button on mobile.
+-- Toggle with L, D-pad up on a gamepad, or the "Light" button on mobile (keys in Config.Flashlight).
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
@@ -80,7 +80,8 @@ function Flashlight.start()
 	build()
 	RunService.RenderStepped:Connect(follow)
 
-	ContextActionService:BindAction("Flashlight", toggle, true, Enum.KeyCode.F, Enum.KeyCode.ButtonL1)
+	-- L / D-pad up (Config.Flashlight): F and L1 belong to the Killer Hotel doors.
+	ContextActionService:BindAction("Flashlight", toggle, true, Config.Flashlight.key, Config.Flashlight.gamepadKey)
 	ContextActionService:SetTitle("Flashlight", "Light")
 	ContextActionService:SetPosition("Flashlight", UDim2.new(0.62, 0, 0.78, 0))
 end

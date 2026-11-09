@@ -186,7 +186,20 @@ function BombHotel.build(def)
 		wallTiles(at(0, 0, side * (D / 2 + 1)), W + 4, true) -- front and back
 		wallTiles(at(side * (W / 2 + 1), 0, 0), D, false) -- left and right
 	end
-	Craft.block(model, CFrame.new(at(0, roofY + 1, 0)), Vector3.new(W + 4, 2, D + 4), Colors.Cardboard)
+	-- The roof is breakable tiles too: every bomb smashes its own hole on the way in.
+	local roofSize = W + 4
+	local roofCount = math.ceil(roofSize / 8)
+	local roofTile = roofSize / roofCount
+	for i = 0, roofCount - 1 do
+		for j = 0, roofCount - 1 do
+			local x = -roofSize / 2 + roofTile / 2 + i * roofTile
+			local z = -roofSize / 2 + roofTile / 2 + j * roofTile
+			local color = if (i + j) % 2 == 0 then Colors.Cardboard else Color3.fromRGB(180, 140, 96)
+			local tile = Craft.block(breakables, CFrame.new(at(x, roofY + 1, z)), Vector3.new(roofTile, 2, roofTile), color, M.Cardboard)
+			tile.Name = "RoofTile"
+			tile:SetAttribute("Breakable", true)
+		end
+	end
 
 	-- Green acid all around and underneath. Fall through a hole in the floor or out of a broken wall
 	-- and you land in it: popped.
@@ -358,10 +371,15 @@ end
 -- Drop a bomb at a random spot anywhere inside the hotel: every 15 seconds at first, getting faster
 -- (down to half that) as the round goes on.
 local function dropBombs(stage, ctx)
+	local roofTop = stage.origin.Y + stage.roofY + 2
 	while ctx.isActive() do
-		local height = math.random(2, stage.roofY - 6)
-		local spot = Util.randomAround(stage.origin, stage.width / 2 - 6, stage.depth / 2 - 6) + Vector3.new(0, height, 0)
-		task.spawn(Bombs.plant, stage, spot)
+		-- Anywhere over the roof, falling from high above it.
+		local spot = Util.randomAround(stage.origin, stage.width / 2 - 6, stage.depth / 2 - 6) + Vector3.new(0, stage.roofY + 25, 0)
+		task.spawn(Bombs.plant, stage, spot, {
+			onBomb = function(bomb: BasePart)
+				Bombs.punchThrough(stage, bomb, roofTop)
+			end,
+		})
 		task.wait(Config.PlantedBombInterval * (1 - 0.5 * ctx.progress()))
 	end
 end

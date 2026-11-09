@@ -29,6 +29,7 @@ local ROOM_REVERB = {
 	Pod = Enum.ReverbType.Hangar, -- huge enclosed toybox: faint hollow echo, walls far away
 	BombHotel = Enum.ReverbType.Auditorium, -- hollow, cavernous indoor space
 	KillerHotel = Enum.ReverbType.Auditorium,
+	HideAndSeek = Enum.ReverbType.Auditorium,
 	SharkSurvival = Enum.ReverbType.Plain,
 }
 

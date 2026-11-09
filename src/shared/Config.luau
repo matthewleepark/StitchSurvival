@@ -5,7 +5,7 @@ local Config = {}
 -- Rounds ---------------------------------------------------------------------
 
 -- Players who get the admin panel (testing tools). Roblox usernames, any capitalization.
-Config.Admins = { "3HBQ" }
+Config.Admins = { "3HBQ", "ACKworld", "suweetiepie" }
 
 Config.MinPlayers = 1 -- players a room needs queued before its start countdown begins
 Config.IntermissionTime = 60 -- countdown once a room is ready; lower this (e.g. 10) while testing
@@ -17,10 +17,11 @@ Config.ResultsTime = 7
 -- World physics: Roblox's normal gravity. (It was 35, a floaty toybox, which made jumps huge.)
 Config.Gravity = 196.2
 
--- Bomb Hotel: every 15 seconds a bomb is dropped at a random spot inside the hotel. Its timer
--- ticks twice a second, doubles speed for the last 5 seconds, then it explodes: everything
--- within 25 studs (floor blocks, pillars, ramps) is ripped loose and thrown outward.
-Config.PlantedBombInterval = 15 -- at the start; it shortens to half this by the end of the round
+-- Bomb Hotel: bombs keep falling out of the sky onto the hotel roof, each at a random spot. A bomb
+-- smashes a hole through the roof where it hits, drops into the hotel and lands on whatever floor is
+-- below. Its timer ticks twice a second, doubles speed for the last 5 seconds, then it explodes:
+-- everything within 25 studs (floor blocks, pillars, ramps) is ripped loose and thrown outward.
+Config.PlantedBombInterval = 5 -- seconds between bombs at the start; it shortens to half this by the end
 Config.PlantedBombFuse = 12
 Config.PlantedBombBlastRadius = 25
 
@@ -59,15 +60,64 @@ Config.PointsPerSticker = 50
 
 Config.StartingStickers = 40
 
--- Promo codes players can type into the CODES box. Each works once per player (per visit, since
--- nothing is saved yet). Rewards: `stickers` (a number) and/or `gear` (an item name from Config.Gear).
+-- Promo codes players can type into the CODES box. Each works once per player, ever (it's saved with
+-- their progress). Rewards: `stickers` (a number) and/or `gear` (an item name from Config.Gear).
 -- Codes aren't case-sensitive. Add or remove them here.
 Config.Codes = {
-	WELCOME = { stickers = 50, message = "Welcome to the hotel! +50 Stickers" },
+	WELCOME = { stickers = 100, message = "Welcome to the hotel! +100 Stickers" },
 	STITCH = { stickers = 100, message = "+100 Stickers!" },
 	CHOMP = { gear = "Bouncy Stuffing", message = "You got Bouncy Stuffing!" },
 }
 Config.RollCost = 20
+
+-- Saving (server/Data.luau): Stickers, Wins, passives, used codes, daily challenges, your look and your
+-- leaderboard stats are kept between visits in a DataStore. In Studio this only works with
+-- Home > Game Settings > Security > "Enable Studio Access to API Services" turned on; without it the
+-- game still runs, it just forgets everything when you stop.
+Config.Save = {
+	storeName = "StitchSurvival_v1", -- change the name to start everyone fresh
+	autosaveSeconds = 120,
+}
+
+-- Daily challenges (server/Daily.luau, the DAILY button). Every day (resetting at midnight UTC) each
+-- player gets `count` challenges picked from this list just for them. Finish one, then press CLAIM in
+-- the DAILY panel for its Stickers. `stat` is what counts toward it:
+--   roundsPlayed, roundsSurvived, points, bubbles, rolls, hides (climbing into a wardrobe), stuns (hitting the
+--   seeker with debris), hunterWins (winning as the killer or seeker), and survive_<Level> for one level.
+Config.Daily = {
+	count = 3,
+	challenges = {
+		{ id = "play3", text = "Play 3 rounds", stat = "roundsPlayed", goal = 3, reward = 30 },
+		{ id = "survive2", text = "Survive 2 rounds", stat = "roundsSurvived", goal = 2, reward = 50 },
+		{ id = "points1500", text = "Score 1,500 points", stat = "points", goal = 1500, reward = 40 },
+		{ id = "bubbles20", text = "Grab 20 score bubbles", stat = "bubbles", goal = 20, reward = 40 },
+		{ id = "roll3", text = "Roll the passive machine 3 times", stat = "rolls", goal = 3, reward = 25 },
+		{ id = "bomb", text = "Survive a Bomb Hotel round", stat = "survive_BombHotel", goal = 1, reward = 40 },
+		{ id = "shark", text = "Survive a Shark Survival round", stat = "survive_SharkSurvival", goal = 1, reward = 40 },
+		{ id = "hideseek", text = "Survive a Hide & Seek round", stat = "survive_HideAndSeek", goal = 1, reward = 50 },
+		{ id = "killer", text = "Survive a Killer Hotel round", stat = "survive_KillerHotel", goal = 1, reward = 50 },
+		{ id = "wardrobe", text = "Hide in a wardrobe 3 times", stat = "hides", goal = 3, reward = 30 },
+		{ id = "stun", text = "Stun the seeker with debris", stat = "stuns", goal = 1, reward = 60 },
+		{ id = "hunter", text = "Win a round as the killer or seeker", stat = "hunterWins", goal = 1, reward = 75 },
+	},
+}
+
+-- Leaderboards: two big boards on the lobby's back wall (above the elevators and beside the fireplace).
+-- Each board takes turns showing its categories, top 10 from every server. `stat` is a saved stat.
+Config.Leaderboards = {
+	refreshSeconds = 60, -- how often the boards fetch the latest top 10
+	flipSeconds = 10, -- how long each category stays up before the board flips to the next
+	boards = {
+		{ { stat = "wins", title = "\u{1F3C6} MOST WINS" }, { stat = "hunterWins", title = "\u{1F52A} TOP HUNTERS" } },
+		{ { stat = "stickersEarned", title = "\u{2B50} MOST STICKERS EARNED" }, { stat = "roundsPlayed", title = "\u{1F3AE} MOST ROUNDS PLAYED" } },
+	},
+}
+
+-- Your look: the knitted doll (default) or your own Roblox avatar. Players switch with the LOOK button;
+-- it's saved. Changing it in the lobby respawns you right away; during a round it waits until you respawn.
+Config.Look = {
+	default = "doll", -- "doll" or "avatar"
+}
 
 -- Each player gets a color, like the blue/pink/green/yellow players in LBP.
 Config.PlayerColors = {
@@ -131,6 +181,43 @@ Config.Levels = {
 		floorHeight = 28, -- studs from one floor to the next (the old hotel was 16); walls are 2 less than this
 		height = 3 * 28 + 20,
 	},
+	-- Hide & Seek: the same kind of maze hotel, no bombs. One SEEKER (red aura) hunts the HIDERS
+	-- (see Config.HideAndSeek below). Played from its own guest-room doors.
+	{
+		name = "HideAndSeek",
+		title = "Hide & Seek",
+		weight = 0,
+		minPlayers = 2, -- a seeker needs someone to find (Config.HideAndSeek.soloTest overrides it)
+		roundTime = 240, -- 4 minutes, counted from GO (the hiding time is part of it)
+		origin = Vector3.new(0, 20, 2100),
+		width = 224, -- = Config.KillerHotel.map.cells * map.cell (it reuses the Killer Hotel maze builder)
+		depth = 224,
+		floors = 3,
+		floorHeight = 28,
+		height = 3 * 28 + 20,
+		-- More rooms than Killer Hotel, and a wardrobe in every one: plenty of places to hide.
+		rooms = { perFloor = 14, passThroughChance = 0.4, wardrobeChance = 1 },
+	},
+}
+
+-- Hide & Seek: one SEEKER hunts the HIDERS through the maze hotel. The seeker counts with their eyes
+-- covered while everyone hides, then comes out glowing with a red aura. Touching a hider who isn't hidden
+-- catches them (they're out). Hiders hide in wardrobes and rooms, and each hider can pick up ONE piece of
+-- debris off the floor (hold E at it) and throw it at the seeker (click or tap where to throw, or press Q):
+-- a hit stuns the seeker in place. Hiders win if anyone is still hidden when the timer runs out.
+Config.HideAndSeek = {
+	soloTest = false, -- true: a lone player becomes the seeker (testing only)
+	hideSeconds = 20, -- the seeker counts this long (frozen, screen covered) while everyone hides
+	catchRange = 4.5, -- studs: how close the seeker has to get to catch someone
+	debrisPerFloor = 10, -- throwable debris pieces lying around on each floor
+	throwSpeed = 95, -- studs per second
+	throwLift = 10, -- a little upward push so the throw arcs
+	throwKey = Enum.KeyCode.Q, -- (gamepad: X; touch gets a THROW button) — clicking or tapping also throws
+	stunSeconds = 4, -- how long a hit freezes the seeker
+	stunImmunitySeconds = 4, -- after a stun wears off the seeker can't be stunned again for this long
+	catchPoints = 150, -- points for the seeker per catch
+	stunPoints = 200, -- points for the hider who lands a stun
+	aura = Color3.fromRGB(255, 40, 40), -- the seeker's glow
 }
 
 -- Killer Hotel: one KILLER hunts the INNOCENTS with bombs. The killer wins by getting everyone before
@@ -139,13 +226,14 @@ Config.Levels = {
 Config.KillerHotel = {
 	killerPityWeight = 0.5, -- each round you were not the killer adds this much to your odds next time (1 = base)
 	soloTest = false, -- true: a lone player becomes the killer (for testing only; normal rounds need minPlayers)
-	fuse = 8, -- seconds from a dropped bomb to the blast
+	fuse = 4, -- seconds from a thrown bomb to the blast
 	startBombs = 3, -- bombs the killer starts with
 	carryLimit = 3, -- the most bombs the killer can hold
 	restockSeconds = 25, -- a new bomb every this many seconds, up to carryLimit
 	dropCooldown = 2, -- seconds between drops
-	dropAhead = 4, -- studs in front of the killer that the bomb lands
-	dropKey = Enum.KeyCode.Q, -- (gamepad: X; touch gets an on-screen button)
+	throwSpeed = 80, -- how hard the killer throws a bomb (studs per second)
+	throwLift = 12, -- a little extra upward push so throws arc instead of skidding along the floor
+	dropKey = Enum.KeyCode.Q, -- throws toward where the camera points (gamepad: X); clicking or tapping throws at that spot
 	killerImmuneToOwnBombs = true, -- the killer takes no damage from blasts, fire or falling blocks (an invisible ForceField), so their own bombs can't end the round
 	killerRescue = true, -- the killer's own blasts can drop the floor away; falling out puts them back on the top floor instead of ending the round
 	roleBannerSeconds = 5, -- how long the "you are the killer / an innocent" banner stays up
@@ -224,8 +312,8 @@ Config.Rooms = {
 		[202] = "SharkSurvival",
 		[204] = "SharkSurvival",
 		[206] = "SharkSurvival",
-		[208] = "SharkSurvival",
-		[210] = "SharkSurvival",
+		[208] = "HideAndSeek",
+		[210] = "HideAndSeek",
 	},
 }
 
@@ -290,8 +378,11 @@ Config.Spooky = {
 	dust = 12, -- floating dust specks per second (0 = none)
 }
 
--- Flashlight: F on keyboard, L1 on a gamepad, a "Light" button on mobile. Only you see your own beam.
+-- Flashlight: L (for Light) on keyboard, D-pad up on a gamepad, a "Light" button on mobile. Only you see
+-- your own beam. (It used to be F / L1, which also kicked doors and locked them in Killer Hotel.)
 Config.Flashlight = {
+	key = Enum.KeyCode.L,
+	gamepadKey = Enum.KeyCode.DPadUp,
 	range = 70, -- studs
 	angle = 50, -- degrees of cone, wider = more floodlight
 	brightness = 4,
