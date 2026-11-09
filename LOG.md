@@ -3,6 +3,14 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 (lobby: middle table out, passive machine moved) — Matthew (with Claude)
+Same branch. **Touches Rosie's HotelLobby.**
+- Removed the marble centerpiece table (with the bouquet) from the middle of the red runner, so the runner is clear
+  from the front doors to the vote stage.
+- The passive machine moved from beside the runner near the spawn (-9, 14) to the open floor left of the runner
+  (-22, 2), between the left pillars and the left lounge, facing the entrance. Checked in Studio: nothing solid
+  overlaps it and it's in plain view from the doors. HUD hint now says "Roll one at the passive machine!".
+
 ## 2026-11-08 (voting stage replaces the reception desk) — Matthew (with Claude)
 Same branch. **Touches Rosie's HotelLobby** (the reception desk is gone).
 - The reception desk is now a permanent **map-vote stage**: a low marble dais on a mahogany skirt with a brass edge

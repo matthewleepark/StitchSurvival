@@ -284,7 +284,7 @@ local function buildGear()
 		else
 			nameLabel.Text = "No passive yet"
 			nameLabel.TextColor3 = Colors.Ink
-			passiveLabel.Text = "Roll one at the machine by the entrance!"
+			passiveLabel.Text = "Roll one at the passive machine!"
 		end
 	end
 	player:GetAttributeChangedSignal("Gear"):Connect(updateGear)

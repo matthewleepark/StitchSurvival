@@ -6,7 +6,8 @@
 --   back wall   elevators | the map-vote stage (where the reception desk was), keys and mailboxes | fireplace
 --   side walls  guest-room balconies upstairs, a library nook (left) and a piano nook (right) below
 --   front wall  entrance doors, tall windows and a clock
---   middle      red runner rug, marble centerpiece, two lounge sets, six marble pillars
+--   middle      red runner rug (clear from the doors to the vote stage), two lounge sets, four marble pillars,
+--               and the passive machine on the open floor to the left of the runner
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -390,9 +391,8 @@ local function buildLounges(ctx)
 	loungeSet(ctx, -30, 20, L.Navy, L.Cream)
 	loungeSet(ctx, 30, 20, L.Teal, L.Cream)
 
-	-- The red runner from the doors to the desk, with the big bouquet halfway along.
+	-- The red runner from the doors to the vote stage, kept clear so nobody bumps into anything on the way.
 	Props.rug(decor, at(0, 0, 4), 12, 70, L.Velvet, L.Brass)
-	Props.centerpiece(decor, CFrame.new(at(0, 0, 4)))
 	-- Four pillars to hide behind instead of six to bump into.
 	for _, z in { 22, -8 } do
 		for _, side in { -1, 1 } do
@@ -463,8 +463,9 @@ function HotelLobby.build()
 	buildEntrance(ctx)
 	Spooky.decorate(model, ctx.O, ctx.W, ctx.D, ctx.H)
 
-	-- The gear machine stands beside the red runner, right in front of where players arrive.
-	local machine = Pod.buildGearMachine(model, ctx.at(-9, 0, 14))
+	-- The passive machine stands on the open floor left of the runner, between the left pillars and the left
+	-- sofas, facing the entrance: in plain view as you walk in, but not in anyone's way.
+	local machine = Pod.buildGearMachine(model, ctx.at(-22, 0, 2))
 
 	-- Soft hidden fill lights in a grid over the floor and along the balcony corridors, so every
 	-- area can be seen. They don't flicker; the visible lamps still do.
