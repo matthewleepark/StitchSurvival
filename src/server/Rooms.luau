@@ -21,7 +21,7 @@ function Rooms.minPlayers(levelName: string): number
 		if def.name == levelName then
 			local minimum = (def :: any).minPlayers
 			if minimum then
-				if levelName == "KillerHotel" and Config.KillerHotel.soloTest then
+				if (levelName == "KillerHotel" and Config.KillerHotel.soloTest) or (levelName == "HideAndSeek" and Config.HideAndSeek.soloTest) then
 					return 1
 				end
 				return minimum

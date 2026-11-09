@@ -9,6 +9,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Craft = require(script.Parent.Craft)
 local Remotes = require(script.Parent.Remotes)
 local Util = require(script.Parent.Util)
+local Daily = require(script.Parent.Daily)
 
 local Score = {}
 
@@ -71,6 +72,7 @@ local function collect(player: Player, position: Vector3)
 	player:SetAttribute("Multiplier", multiplier)
 	Score.add(player, Config.BubblePoints * multiplier, position)
 	Remotes.fireAll("Pop", { position = position, userId = player.UserId })
+	Daily.track(player, "bubbles", 1)
 end
 
 -- A glossy 2-stud plastic bubble with a little tin-foil star inside. It bobs gently (animated on

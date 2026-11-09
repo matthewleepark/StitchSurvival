@@ -27,9 +27,11 @@ function CameraGuard.start()
 
 	RunService:BindToRenderStep("CameraGuard", Enum.RenderPriority.Camera.Value + 2, function()
 		local camera = workspace.CurrentCamera
-		local character = player.Character
+		-- Whoever the camera follows: you, or the player you're spectating.
+		local subject = camera.CameraSubject
+		local character = if subject and subject:IsA("Humanoid") then subject.Parent else player.Character
 		local head = character and character:FindFirstChild("Head") :: BasePart?
-		if not head or camera.CameraType ~= Enum.CameraType.Custom then
+		if not character or not head or camera.CameraType ~= Enum.CameraType.Custom then
 			return
 		end
 

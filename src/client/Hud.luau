@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Audio = require(script.Parent.Audio)
@@ -253,14 +254,26 @@ end
 -- Passive card: which passive you have equipped and what it does -------------------------------------------
 
 local function buildGear()
-	local card = paper({
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -16, 1, -16),
-		Size = UDim2.fromOffset(250, 120),
-	})
-	local nameLabel = text({ Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 30), TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd }, card)
-	local passiveLabel = text({ Position = UDim2.fromOffset(10, 38), Size = UDim2.new(1, -20, 0, 48), TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = Color3.fromRGB(100, 80, 64) }, card)
-	text({ Position = UDim2.fromOffset(10, 90), Size = UDim2.new(1, -20, 0, 22), TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Text = "Roll for more at the passive machine!", TextColor3 = Colors.Felt }, card)
+	-- Phones and tablets: the bottom right is the jump button's, so the card is a small name tag on the left
+	-- under the health ribbon instead, and it steps aside during rounds (the role tag goes there).
+	local touch = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+	local card = paper(if touch
+		then { Position = UDim2.fromOffset(16, 138), Size = UDim2.fromOffset(200, 40) }
+		else {
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, -16, 1, -16),
+			Size = UDim2.fromOffset(250, 120),
+		})
+	local nameLabel = text({ Position = UDim2.fromOffset(10, if touch then 5 else 6), Size = UDim2.new(1, -20, 0, 30), TextSize = if touch then 17 else 20, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd }, card)
+	local passiveLabel = text({ Position = UDim2.fromOffset(10, 38), Size = UDim2.new(1, -20, 0, 48), TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = Color3.fromRGB(100, 80, 64), Visible = not touch }, card)
+	text({ Position = UDim2.fromOffset(10, 90), Size = UDim2.new(1, -20, 0, 22), TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, Text = "Roll for more at the passive machine!", TextColor3 = Colors.Felt, Visible = not touch }, card)
+	if touch then
+		local function update()
+			card.Visible = not player:GetAttribute("InRound")
+		end
+		player:GetAttributeChangedSignal("InRound"):Connect(update)
+		update()
+	end
 
 	local function updateGear()
 		local gear = Config.getGear(player:GetAttribute("Gear"))

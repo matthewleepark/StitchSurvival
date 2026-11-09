@@ -12,6 +12,16 @@ rebuilt in full 3D with the normal Roblox third-person camera. Players are littl
 - **Shark Survival**: a 300 x 300 stud tissue-paper ocean with floating foam rafts that tip under
   your weight. A clockwork shark patrols, hunts anyone within 45 studs, smashes rafts and pops
   whoever it catches. Underwater you use up air.
+- **Killer Hotel**: a three-floor maze hotel. One killer throws bombs at everyone else; the
+  innocents hide and run until the timer ends.
+- **Hide & Seek**: the same kind of maze, no bombs. One seeker (glowing red) counts while everyone
+  hides in wardrobes and rooms, then catches anyone they reach. Each hider can pick up one piece of
+  junk and throw it at the seeker to stun them.
+
+In the lobby: **DAILY** challenges pay out Stickers, **CODES** takes promo codes (try `WELCOME`),
+**DOLL / ME** switches between the knitted doll and your own avatar, and two leaderboards hang on
+the back wall. Progress is saved between visits. If you're out of a round, press **SPECTATE** to
+watch the players still in it.
 
 Between levels everyone waits in **the Pod**, a closed cardboard toybox where the gear machine
 sells scuba gear rolls. Better gear means more air underwater.
@@ -23,6 +33,10 @@ sells scuba gear rolls. Better gear means more air underwater.
 - **Space**: jump (and swim up)
 - **E** (hold): grab walls, rafts and blocks. Press jump while hanging to launch off.
   Grabbing something loose and heavy lets you drag it at half speed.
+- **L**: flashlight on/off (D-pad up on a gamepad, the Light button on phones)
+- **F** (hold): kick doors, hide in wardrobes, pick up junk (in the maze levels). **G**: lock a door.
+- **Click / tap** anywhere: throw your bomb (killer) or your junk (hider) there. **Q** throws too.
+- **Left Shift**: run (maze levels). **Left / Right arrows**: switch who you're spectating.
 
 ## Running it
 

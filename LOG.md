@@ -3,6 +3,46 @@
 Newest entry at the top. One entry per working session: date, who, what changed, what's next, blockers.
 "Rosie (with Claude)" means Rosie directed the work and her Claude Code agent wrote the code.
 
+## 2026-11-08 (stickers, saving, Hide & Seek, spectate) — Matthew (with Claude)
+Branch `matthew/stickers-and-modes` (from `matthew/shark-redesign`, which isn't merged yet).
+**Touches Rosie's files** (client HUD/Roles/Flashlight/CodesPanel/Audio, HotelLobby, Rooms, KillerHotel,
+KillerMaze, KillerRooms, Parkour): small hooks only, listed below. Rosie should review those.
+- **Sticker sign:** the "20 STICKERS" price on the passive machine is on its own paper tag inside the stitched
+  border, so no stitch crosses the words (`Pod.buildGearMachine`).
+- **Saving (new `Data.luau`):** Stickers, Wins, passives, look, used codes, daily challenges and lifetime stats
+  are saved in a DataStore (`Config.Save`). Offline in Studio without API access (it warns once). If a real load
+  fails, that player isn't saved that visit, so a hiccup can't wipe them.
+- **Promo codes:** `WELCOME` now gives 100 Stickers. Every code is once per account, ever (was once per visit).
+- **Daily challenges (new `Daily.luau`, `client/DailyPanel.luau`):** 3 per player per day from `Config.Daily`,
+  progress bars and CLAIM buttons, red dot when something is ready. The server checks every claim.
+- **Leaderboards (new `Leaderboards.luau`):** two lit boards on the lobby back wall (above the elevators and
+  beside the fireplace), each flipping between two top-10s: wins / top hunters, stickers earned / rounds played.
+- **Hide & Seek (new `Levels/HideAndSeek.luau`, rooms 208 and 210):** reuses the Killer Hotel maze with more rooms
+  and a wardrobe in every one (`def.rooms` override in KillerMaze). The seeker counts 20 s with the screen
+  covered, then hunts with a red aura (Highlight + light + embers); getting close catches a hider. 30 pieces of
+  glowing junk lie around; each hider can pick up one (F) and throw it once (click / tap / Q); a hit stuns the
+  seeker for 4 s (then 4 s immune). Uses `stage.killer` so doors, wardrobe searches and parkour just work.
+- **Spectator mode (new `client/Spectate.luau`, `Spectate.luau`):** SPECTATE button when a round is on and you
+  aren't in it; arrows switch players, EXIT goes back. Server streams around the watched player.
+  `CameraGuard` now guards whoever the camera follows.
+- **Look:** DOLL / ME button switches between the knitted doll and your own avatar (saved; respawns you in the
+  lobby, waits until after the round otherwise).
+- **Admin:** Kick, Ban (every server, saved, double-tap to confirm), Unban, "Send in a shark" (Bomb Hotel).
+  Admins can't be kicked or banned. Banned players are kicked on join.
+- **Polish:** flashlight moved from F / L1 to **L / D-pad up** (F and L1 are the Killer Hotel door keys). New
+  `client/Menu.luau` stacks CODES / DAILY / DOLL; on phones it moves off the thumbstick and hides in rounds,
+  the passive card shrinks to a tag, and the admin button moves beside the score. Admin panel no longer runs
+  into the menu. Role tag moved off the health ribbon.
+- Hooks in shared files: `InRound` player attribute (round loop), `stage.ctx`, `stage.onHide` (KillerRooms),
+  Parkour runs in HideAndSeek too, Rooms `soloTest` for HideAndSeek, lobby glow/icon, Audio reverb.
+- **Checked in Studio:** WELCOME +100 then refused; rolls count, CLAIM pays once, unfinished claim refused;
+  boards built and fit the wall; sign fixed; look switch respawns; Hide & Seek (solo test): 30 junk pieces,
+  aura, seeker frozen while counting, pick up, throw, stun (frozen 4 s, stars, "stun" challenge 1/1); admin
+  self-ban refused. luau-lsp clean apart from the 3 old errors (MazeLayout, KillerMaze, Parkour).
+- **Not checked:** spectating and catching (need 2 players: use Studio's Test > Clients and Servers), saving to a
+  real DataStore (turn on API access), phone layout on a real phone. Screenshots of the maze came out black.
+- **Studio note:** the Rojo plugin made two copies of each new script. Disconnect and reconnect Rojo to clean up.
+
 ## 2026-11-08 (admin: suweetiepie) — Matthew (with Claude)
 Same branch.
 - **Admin:** added `suweetiepie` to `Config.Admins` (now 3HBQ, ACKworld, suweetiepie). The server still checks the

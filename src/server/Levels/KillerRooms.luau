@@ -326,6 +326,9 @@ local function climbIn(stage, wardrobe, player: Player)
 	wardrobe.occupant = player
 	stage.hiding[player] = { wardrobe = wardrobe, saved = saved, humanoid = humanoid }
 	Util.playSound("WardrobeCreak", wardrobe.body)
+	if stage.onHide then
+		stage.onHide(player) -- e.g. a daily challenge counting it
+	end
 	humanoid.Died:Once(function()
 		if stage.hiding[player] then
 			climbOut(stage, wardrobe, player, nil)

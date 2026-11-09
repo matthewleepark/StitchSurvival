@@ -13,6 +13,12 @@
 --   GivePassive { passive, target }  give a passive (target = "me" or a player name) and equip it
 --   GiveAllPassives { target }       every passive
 --   RemovePassive { target }         take the equipped passive off
+--   Kick { target, reason }          remove a player from this server
+--   Ban { target, reason }           kick them and keep them out of every server (saved; see Data.luau).
+--                                    target can be someone who isn't here: type their exact username.
+--   Unban { target }                 let a banned username back in
+--   SpawnShark                       Bomb Hotel: send in a chaos shark right now
+-- Admins can't be kicked or banned (by anyone), so a slip of the finger can't lock an admin out.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -23,20 +29,27 @@ local RoundControl = require(script.Parent.RoundControl)
 local Score = require(script.Parent.Score)
 local Util = require(script.Parent.Util)
 local Bombs = require(script.Parent.Levels.Bombs)
+local FlyingShark = require(script.Parent.Levels.FlyingShark)
+local Data = require(script.Parent.Data)
 local Gear = require(script.Parent.Gear)
 
 local Admin = {}
 
 local pod -- the lobby, set in Admin.start
 
-local function isAdmin(player: Player): boolean
+local function isAdminName(username: string): boolean
 	for _, name in Config.Admins do
-		if string.lower(name) == string.lower(player.Name) then
+		if string.lower(name) == string.lower(username) then
 			return true
 		end
 	end
 	return false
 end
+
+local function isAdmin(player: Player): boolean
+	return isAdminName(player.Name)
+end
+Admin.isAdmin = isAdmin
 
 local function tell(player: Player, text: string)
 	Remotes.fire(player, "Announce", { text = text, color = Config.Colors.Gold })
@@ -141,10 +154,16 @@ function commands.Bubbles(player: Player)
 end
 
 function commands.Stickers(player: Player)
-	local leaderstats = player:FindFirstChild("leaderstats")
-	local stickers = leaderstats and leaderstats:FindFirstChild("Stickers") :: IntValue?
-	if stickers then
-		stickers.Value += 100
+	Data.giveStickers(player, 100, false) -- a gift, so it doesn't count on the "stickers earned" board
+end
+
+function commands.SpawnShark(player: Player)
+	local stage = RoundControl.stage
+	if RoundControl.levelName == "BombHotel" and stage and stage.ctx and not stage.frozen then
+		task.spawn(FlyingShark.attack, stage, stage.ctx)
+		tell(player, "Here comes a shark! Watch the walls for a red crack")
+	else
+		tell(player, "Sharks can only be sent into a Bomb Hotel round")
 	end
 end
 
@@ -162,6 +181,103 @@ local function findTarget(player: Player, name: any): Player?
 	end
 	tell(player, `No player called "{name}"`)
 	return nil
+end
+
+-- A short, clean reason (or a default).
+local function reasonFrom(args: any): string
+	local reason = if type(args) == "table" and type(args.reason) == "string" then args.reason else ""
+	reason = string.sub(string.gsub(reason, "[%c]", " "), 1, 120)
+	return if string.match(reason, "%S") then reason else "Breaking the rules"
+end
+
+-- A player named for kicking or banning, but never an admin, and never yourself.
+local function punishable(player: Player, target: Player?): boolean
+	if not target then
+		return false
+	end
+	if target == player then
+		tell(player, "You can't do that to yourself")
+		return false
+	end
+	if isAdmin(target) then
+		tell(player, `{target.DisplayName} is an admin and can't be kicked or banned`)
+		return false
+	end
+	return true
+end
+
+function commands.Kick(player: Player, args: any)
+	local name = type(args) == "table" and args.target or nil
+	if type(name) ~= "string" or name == "" or string.lower(name) == "me" then
+		tell(player, "Type the player's name first")
+		return
+	end
+	local target = findTarget(player, name)
+	if target and punishable(player, target) then
+		local reason = reasonFrom(args)
+		target:Kick(`You were kicked: {reason}`)
+		tell(player, `Kicked {target.Name}`)
+	end
+end
+
+function commands.Ban(player: Player, args: any)
+	local name = type(args) == "table" and args.target or nil
+	if type(name) ~= "string" or name == "" or string.lower(name) == "me" then
+		tell(player, "Type the player's name first")
+		return
+	end
+	local reason = reasonFrom(args)
+	-- Someone on this server (matched by the start of their name), or else an exact username.
+	local wanted = string.lower(name)
+	local online: Player? = nil
+	for _, other in Players:GetPlayers() do
+		if string.sub(string.lower(other.Name), 1, #wanted) == wanted or string.sub(string.lower(other.DisplayName), 1, #wanted) == wanted then
+			online = other
+			break
+		end
+	end
+	local userId, username
+	if online then
+		if not punishable(player, online) then
+			return
+		end
+		userId, username = online.UserId, online.Name
+	else
+		local ok, id = pcall(function()
+			return Players:GetUserIdFromNameAsync(name)
+		end)
+		if not ok or not id then
+			tell(player, `No Roblox user called "{name}"`)
+			return
+		end
+		if isAdminName(name) then
+			tell(player, `{name} is an admin and can't be banned`)
+			return
+		end
+		userId, username = id, name
+	end
+	local everywhere = Data.setBan(userId, reason, player.Name)
+	if online then
+		online:Kick(`You are banned from Stitch Survival: {reason}`)
+	end
+	tell(player, if everywhere then `Banned {username} from every server` else `Banned {username} on this server only (saving is off)`)
+end
+
+function commands.Unban(player: Player, args: any)
+	local name = type(args) == "table" and args.target or nil
+	if type(name) ~= "string" or name == "" then
+		tell(player, "Type the username to unban first")
+		return
+	end
+	local ok, id = pcall(function()
+		return Players:GetUserIdFromNameAsync(name)
+	end)
+	if not ok or not id then
+		tell(player, `No Roblox user called "{name}"`)
+		return
+	end
+	Data.setBan(id, nil, player.Name)
+	tell(player, `Unbanned {name}`)
 end
 
 -- Give a passive (and equip it). Argument: { passive = name, target = player name or "me" }.

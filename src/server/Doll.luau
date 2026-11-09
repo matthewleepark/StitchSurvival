@@ -3,13 +3,20 @@
 -- own (face, skin, hair and hats), just a little bigger for cute proportions.
 -- When a doll is popped it goes completely floppy: every joint turns into a loose ball-and-socket
 -- so the arms, legs and head tumble around (a ragdoll) instead of falling off.
+--
+-- LOOK: players can keep their own Roblox avatar instead (the LOOK button; the "Look" attribute is
+-- "doll" or "avatar", saved with their progress). Switching in the lobby respawns them right away; during
+-- a round the new look waits until they next respawn.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Remotes = require(script.Parent.Remotes)
 
 local Doll = {}
+
+local lastSwitch: { [Player]: number } = {}
 
 local function attach(part: BasePart, to: BasePart)
 	part.Anchored = false
@@ -103,6 +110,17 @@ end
 
 local function dress(player: Player, character: Model)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if player:GetAttribute("Look") == "avatar" then
+		-- Their own avatar, as it is; just the same movement as everyone else.
+		character:SetAttribute("DressedAs", "avatar")
+		if humanoid then
+			humanoid.UseJumpPower = false
+			humanoid.JumpHeight = Config.Doll.JumpHeight
+			humanoid.WalkSpeed = Config.Doll.WalkSpeed
+		end
+		return
+	end
+	character:SetAttribute("DressedAs", "doll")
 	if humanoid then
 		cuteProportions(humanoid)
 	end
@@ -211,11 +229,37 @@ function Doll.start()
 		player.CharacterAppearanceLoaded:Connect(function(character)
 			dress(player, character)
 		end)
+		-- The look changed (the LOOK button, or their save just loaded): show it now if they're in the lobby.
+		player:GetAttributeChangedSignal("Look"):Connect(function()
+			local character = player.Character
+			local dressedAs = character and character:GetAttribute("DressedAs")
+			if dressedAs and dressedAs ~= player:GetAttribute("Look") and not player:GetAttribute("InRound") then
+				player:LoadCharacterAsync()
+			end
+		end)
 	end
 	Players.PlayerAdded:Connect(watch)
 	for _, player in Players:GetPlayers() do
 		watch(player)
 	end
+
+	Remotes.SetLook.OnServerEvent:Connect(function(player: Player, look: any)
+		if look ~= "doll" and look ~= "avatar" then
+			return
+		end
+		local now = os.clock()
+		if lastSwitch[player] and now - lastSwitch[player] < 3 then
+			return
+		end
+		lastSwitch[player] = now
+		player:SetAttribute("Look", look)
+		if player:GetAttribute("InRound") then
+			Remotes.fire(player, "Announce", { text = "Your new look shows up after this round!", color = Config.Colors.Gold })
+		end
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		lastSwitch[player] = nil
+	end)
 end
 
 return Doll

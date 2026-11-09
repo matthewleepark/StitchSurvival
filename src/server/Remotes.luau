@@ -42,6 +42,26 @@ local clamber = Instance.new("RemoteEvent")
 clamber.Name = "Clamber"
 clamber.Parent = folder
 
+-- Daily challenges: claim the Stickers for a finished challenge (its id). The server checks it's finished.
+local claimDaily = Instance.new("RemoteEvent")
+claimDaily.Name = "ClaimDaily"
+claimDaily.Parent = folder
+
+-- Hide & Seek: a hider holding debris asks to throw it at a spot (a Vector3).
+local throwDebris = Instance.new("RemoteEvent")
+throwDebris.Name = "ThrowDebris"
+throwDebris.Parent = folder
+
+-- Your look: "doll" or "avatar".
+local setLook = Instance.new("RemoteEvent")
+setLook.Name = "SetLook"
+setLook.Parent = folder
+
+-- Spectating: which player you're watching (or nil to stop), so the server streams the world around them to you.
+local spectate = Instance.new("RemoteEvent")
+spectate.Name = "Spectate"
+spectate.Parent = folder
+
 folder.Parent = ReplicatedStorage
 
 local Remotes = {
@@ -52,6 +72,10 @@ local Remotes = {
 	DropBomb = dropBomb,
 	Sprint = sprint,
 	Clamber = clamber,
+	ClaimDaily = claimDaily,
+	ThrowDebris = throwDebris,
+	SetLook = setLook,
+	Spectate = spectate,
 }
 
 function Remotes.fireAll(kind: string, data: any?)

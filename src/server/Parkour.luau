@@ -12,7 +12,7 @@
 --     play the move (a "ClamberGo" effect) and, once it should be done, makes sure you ended up on top. The
 --     killer takes killerClamberMultiplier times longer.
 --
--- Only runs during a Killer Hotel round. Each player's stamina is the "Stamina" attribute (0 to 1) so the
+-- Only runs during a Killer Hotel or Hide & Seek round. Each player's stamina is the "Stamina" attribute (0 to 1) so the
 -- client can draw the bar; it is cleared when the round is over.
 
 local CollectionService = game:GetService("CollectionService")
@@ -42,10 +42,13 @@ type State = {
 
 local states: { [Player]: State } = {}
 
--- The running Killer Hotel stage, but only while the round is actually being played.
+-- Levels with running and clambering (both use the Killer Hotel maze).
+local PARKOUR_LEVELS = { KillerHotel = true, HideAndSeek = true }
+
+-- The running maze stage, but only while the round is actually being played.
 local function activeStage()
 	local stage = RoundControl.stage
-	if RoundControl.levelName == "KillerHotel" and stage and not stage.frozen and ReplicatedStorage:GetAttribute("Phase") == "Playing" then
+	if PARKOUR_LEVELS[RoundControl.levelName or ""] and stage and not stage.frozen and ReplicatedStorage:GetAttribute("Phase") == "Playing" then
 		return stage
 	end
 	return nil

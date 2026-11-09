@@ -14,7 +14,11 @@ local Rooms = require(script.Rooms)
 local RoundControl = require(script.RoundControl)
 local Admin = require(script.Admin)
 local Codes = require(script.Codes)
+local Daily = require(script.Daily)
+local Data = require(script.Data)
+local Leaderboards = require(script.Leaderboards)
 local Score = require(script.Score)
+local Spectate = require(script.Spectate)
 local Util = require(script.Util)
 local Pod = require(script.Levels.HotelLobby) -- the hub; swap back to script.Levels.Pod for the old toybox
 
@@ -22,6 +26,7 @@ local levelModules = {
 	BombHotel = require(script.Levels.BombHotel),
 	SharkSurvival = require(script.Levels.SharkSurvival),
 	KillerHotel = require(script.Levels.KillerHotel),
+	HideAndSeek = require(script.Levels.HideAndSeek),
 }
 
 Players.RespawnTime = 3
@@ -33,28 +38,53 @@ local function setStatus(text: string, timeLeft: number?)
 	ReplicatedStorage:SetAttribute("TimeLeft", timeLeft or 0)
 end
 
+Data.start() -- saving; must start before anyone's profile loads
+
 local nextColor = 0
 local function setupPlayer(player: Player)
 	nextColor += 1
 	player:SetAttribute("Color", Config.PlayerColors[(nextColor - 1) % #Config.PlayerColors + 1])
+
+	-- Banned on any server? (Admins can't be banned, so a mistake can always be undone.)
+	if not Admin.isAdmin(player) then
+		local reason = Data.banReason(player.UserId)
+		if reason then
+			player:Kick(`You are banned from Stitch Survival: {reason}`)
+			return
+		end
+	end
+
+	-- Their save: Stickers, Wins, passives, look, codes, challenges. (Yields; nil if they left meanwhile.)
+	local profile = Data.load(player)
+	if not profile then
+		return
+	end
 
 	local leaderstats = Instance.new("Folder")
 	leaderstats.Name = "leaderstats"
 
 	local wins = Instance.new("IntValue")
 	wins.Name = "Wins"
+	wins.Value = profile.wins
 	wins.Parent = leaderstats
 
 	local stickers = Instance.new("IntValue")
 	stickers.Name = "Stickers"
-	stickers.Value = Config.StartingStickers
+	stickers.Value = profile.stickers
 	stickers.Parent = leaderstats
 
+	player:SetAttribute("OwnedGear", if profile.ownedGear ~= "" then profile.ownedGear else nil)
+	if profile.gear then
+		player:SetAttribute("Gear", profile.gear)
+		Gear.apply(player)
+	end
+	player:SetAttribute("Look", profile.look)
 	leaderstats.Parent = player
+	Daily.playerReady(player)
 end
 Players.PlayerAdded:Connect(setupPlayer)
 for _, player in Players:GetPlayers() do
-	setupPlayer(player)
+	task.spawn(setupPlayer, player)
 end
 
 local pod = Pod.build()
@@ -63,6 +93,9 @@ Doll.start()
 Gear.start(pod.machine)
 Admin.start(pod)
 Codes.start()
+Daily.start()
+Leaderboards.start()
+Spectate.start()
 
 local function sendToPod(player: Player)
 	local character = player.Character
@@ -164,12 +197,14 @@ local function playRound(room: Rooms.Room)
 		if player.Parent and humanoid and player.Character then
 			table.insert(participants, player)
 			alive[player] = true
+			player:SetAttribute("InRound", true) -- spectators can watch you (client/Spectate.luau)
 			local spawnAt = stage.spawns[(#participants - 1) % #stage.spawns + 1]
 			Rooms.release(player) -- out of any waiting-room chair first
 			player.Character:PivotTo(spawnAt)
 			Remotes.fireAll("Teleport", { position = spawnAt.Position, color = player:GetAttribute("Color") })
 			table.insert(connections, humanoid.Died:Connect(function()
 				alive[player] = nil
+				player:SetAttribute("InRound", nil)
 				local root = Util.rootPart(player)
 				if root then
 					Remotes.fireAll("Poof", { position = root.Position, color = player:GetAttribute("Color") })
@@ -210,6 +245,7 @@ local function playRound(room: Rooms.Room)
 			return math.clamp((os.clock() - startTime) / roundTime, 0, 1)
 		end,
 	}
+	stage.ctx = ctx -- the admin panel's "spawn a shark" needs it
 	task.spawn(level.run, stage, ctx)
 
 	local nextTick = startTime + 1
@@ -260,6 +296,7 @@ local function playRound(room: Rooms.Room)
 	local entries = {}
 	local anySurvived = false
 	for _, player in participants do
+		player:SetAttribute("InRound", nil)
 		if player.Parent then
 			local survived = if outcome then outcome.winners[player] == true else alive[player] == true
 			if survived then
@@ -268,12 +305,26 @@ local function playRound(room: Rooms.Room)
 			end
 			local score = Score.get(player)
 			local earned = math.floor(score / Config.PointsPerSticker)
+			Data.giveStickers(player, earned, true)
 			local leaderstats = player:FindFirstChild("leaderstats")
-			if leaderstats then
-				leaderstats.Stickers.Value += earned
-				if survived then
-					leaderstats.Wins.Value += 1
+			if leaderstats and survived then
+				leaderstats.Wins.Value += 1
+			end
+			-- Lifetime stats (leaderboards) and today's challenges.
+			local hunterWon = survived and stage.killer == player
+			Data.addStat(player, "roundsPlayed", 1)
+			Daily.track(player, "roundsPlayed", 1)
+			Daily.track(player, "points", score)
+			if survived then
+				Data.addStat(player, "roundsSurvived", 1)
+				Daily.track(player, "roundsSurvived", 1)
+				if not hunterWon then
+					Daily.track(player, `survive_{def.name}`, 1)
 				end
+			end
+			if hunterWon then
+				Data.addStat(player, "hunterWins", 1)
+				Daily.track(player, "hunterWins", 1)
 			end
 			table.insert(entries, {
 				name = player.DisplayName,

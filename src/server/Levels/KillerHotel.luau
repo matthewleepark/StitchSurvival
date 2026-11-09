@@ -21,6 +21,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local Remotes = require(script.Parent.Parent.Remotes)
 local RoundControl = require(script.Parent.Parent.RoundControl)
 local Util = require(script.Parent.Parent.Util)
+local Daily = require(script.Parent.Parent.Daily)
 local Bombs = require(script.Parent.Bombs)
 local KillerMaze = require(script.Parent.KillerMaze)
 local KillerRooms = require(script.Parent.KillerRooms)
@@ -72,6 +73,9 @@ function KillerHotel.build(def)
 	stage.bombs = 0
 	stage.lastDrop = 0
 	stage.nextRestock = 0
+	stage.onHide = function(player: Player)
+		Daily.track(player, "hides", 1) -- the "hide in a wardrobe" daily challenge
+	end
 	return stage
 end
 
